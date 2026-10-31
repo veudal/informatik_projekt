@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:informatik_projekt/screens/login/create_account_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,19 +22,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    super.dispose();
     emailController.removeListener(onInputChange);
     passwordController.removeListener(onInputChange);
     emailController.dispose();
     passwordController.dispose();
+    super.dispose();
   }
 
   void onInputChange() {
     // trigger ui rebuild
     setState(() {});
-  }
-
-  void onPressConfirm() {
   }
 
   bool isConfirmButtonEnabled() {
@@ -41,6 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     
     return false;
+  }
+
+  void onPressConfirm() {
   }
 
   @override
@@ -93,7 +95,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: isConfirmButtonEnabled() ? onPressConfirm : null, // null will display the widget as disabled
                 child: const Text('Confirm')
               ),
-              const SizedBox(height: 32)
+              const SizedBox(height: 24),
+              RichText(
+                text: TextSpan(
+                  text: 'Create Account',
+                  style: TextStyle(color: Colors.blue),
+                  recognizer: TapGestureRecognizer()..onTap = () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterAccountScreen()));
+                  }
+                ),
+              )
             ]
           )
         )
