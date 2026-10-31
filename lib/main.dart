@@ -1,8 +1,48 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'screens/families_screen.dart'; // Make sure this matches your folder name!
+import 'firebase_options.dart';
+import 'screens/families_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Added iOS support so your iOS builds get initialized too!
+  final isSupportedPlatform = kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  if (isSupportedPlatform) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // Request permissions and capture user authorization status
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Only fetch the token if permission is granted
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      try {
+        final token = await FirebaseMessaging.instance.getToken(
+          vapidKey: kIsWeb
+              ? 'BJVJQ06DQ1EfLmp139h21lWR7Sjga7o0iNAoIbeeh2BIqEwsVU_xlGIvaXCxGZ4jwzJkeNyqrHNhUkzsMxZRVhM'
+              : null,
+        );
+        debugPrint('FCM TOKEN: $token');
+      } catch (e) {
+        debugPrint('FCM ERROR fetching token: $e');
+      }
+    } else {
+      debugPrint('FCM Note: User declined push notification permissions.');
+    }
+  }
+
   runApp(const MyApp());
 }
 
