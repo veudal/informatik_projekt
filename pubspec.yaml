@@ -36,9 +36,12 @@ dependencies:
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.18.3
   mobile_scanner: ^7.4.2
+<<<<<<< HEAD
   http: ^1.2.0
   firebase_core: ^5.1.0
   firebase_messaging: ^17.0.1
+=======
+>>>>>>> origin/login
 
 dev_dependencies:
   flutter_test:

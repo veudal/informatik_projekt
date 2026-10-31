@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+<<<<<<< HEAD
 import 'firebase_options.dart';
 import 'screens/families_screen.dart';
 
@@ -42,6 +43,9 @@ Future<void> main() async {
       debugPrint('FCM Note: User declined push notification permissions.');
     }
   }
+=======
+import 'screens/splash/splash_screen.dart';
+>>>>>>> origin/login
 
   runApp(const MyApp());
 }
@@ -57,7 +61,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
-      home: const FamiliesScreen(),
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
