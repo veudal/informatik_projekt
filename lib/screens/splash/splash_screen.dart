@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:informatik_projekt/screens/families_screen.dart';
 import 'package:informatik_projekt/screens/login/login_screen.dart';
 
+const bool skipLogin = true;
 
 // a simple splash screen that simulates a loading process by waiting 1 second, until forwarding to an actual login screen
 class SplashScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late final AnimationController controller;
 
   @override
+
   void initState() {
     super.initState();
 
@@ -27,7 +30,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     controller.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen())
+          MaterialPageRoute(
+            builder: (_) => skipLogin ? const FamiliesScreen() : const LoginScreen(),
+          )
         );
       }
     });

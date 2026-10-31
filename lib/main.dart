@@ -2,8 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'screens/splash/splash_screen.dart';
 
-<<<<<<< HEAD
 import 'firebase_options.dart';
 import 'screens/families_screen.dart';
 
@@ -43,9 +43,6 @@ Future<void> main() async {
       debugPrint('FCM Note: User declined push notification permissions.');
     }
   }
-=======
-import 'screens/splash/splash_screen.dart';
->>>>>>> origin/login
 
   runApp(const MyApp());
 }
