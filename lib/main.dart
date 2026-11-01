@@ -12,43 +12,42 @@ import 'screens/families_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Added iOS support so your iOS builds get initialized too!
-  final isSupportedPlatform =
-      kIsWeb ||
+  final isSupportedPlatform = kIsWeb ||
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
   if (isSupportedPlatform) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
 
-    // Request permissions and capture user authorization status
+  runApp(const MyApp());
+
+  // Not awaited, so it doesn't block the UI
+  if (isSupportedPlatform) _setupPushNotifications();
+}
+
+Future<void> _setupPushNotifications() async {
+  try {
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // Only fetch the token if permission is granted
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      try {
-        final token = await FirebaseMessaging.instance.getToken(
-          vapidKey: kIsWeb
-              ? 'BJVJQ06DQ1EfLmp139h21lWR7Sjga7o0iNAoIbeeh2BIqEwsVU_xlGIvaXCxGZ4jwzJkeNyqrHNhUkzsMxZRVhM'
-              : null,
-        );
-        debugPrint('FCM TOKEN: $token');
-      } catch (e) {
-        debugPrint('FCM ERROR fetching token: $e');
-      }
+      final token = await FirebaseMessaging.instance.getToken(
+        vapidKey: kIsWeb ? 'BJVJQ06DQ1EfLmp139h21lWR7Sjga7o0iNAoIbeeh2BIqEwsVU_xlGIvaXCxGZ4jwzJkeNyqrHNhUkzsMxZRVhM' : null,
+      );
+      debugPrint('FCM TOKEN: $token');
     } else {
-      debugPrint('FCM Note: User declined push notification permissions.');
+      debugPrint('FCM: user declined push permissions.');
     }
+  } catch (e) {
+    debugPrint('FCM error: $e');
   }
-
-  runApp(const MyApp());
 }
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
