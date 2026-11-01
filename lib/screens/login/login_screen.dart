@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:informatik_projekt/screens/families_screen.dart';
 import 'package:informatik_projekt/screens/login/create_account_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -42,8 +43,12 @@ class _LoginScreenState extends State<LoginScreen> {
     return false;
   }
 
-  void onPressConfirm() {
-  }
+void onPressConfirm() {
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const FamiliesScreen()),
+    (route) => false, // remove everything below
+  );
+}
 
   @override
   Widget build(BuildContext context) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:informatik_projekt/screens/families_screen.dart';
 import 'package:informatik_projekt/screens/login/login_screen.dart';
 
-const bool skipLogin = false;
+const bool skipLogin = true;
 
 // a simple splash screen that simulates a loading process by waiting 1 second, until forwarding to an actual login screen
 class SplashScreen extends StatefulWidget {

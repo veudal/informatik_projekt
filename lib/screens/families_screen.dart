@@ -22,7 +22,9 @@ class _FamiliesScreenState extends State<FamiliesScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    // Rebuild so the NavigationBar highlight follows swipes.
+    _tabController.addListener(() => setState(() {}));
     _loadData();
   }
 
@@ -45,8 +47,11 @@ class _FamiliesScreenState extends State<FamiliesScreen>
     await _confirmJoinFamily(familyId);
   }
 
-    Future<void> _openCreateFamilyDialog() async {
-      showDialog(context: context, builder: (_) => AlertDialog(content: SelectableText('Mock up lol')));
+  Future<void> _openCreateFamilyDialog() async {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(content: SelectableText('Mock up lol')),
+    );
   }
 
   /// Asks the user to confirm joining the scanned family.
@@ -160,15 +165,17 @@ class _FamiliesScreenState extends State<FamiliesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Family App Hub'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.group), text: 'Families'),
-            Tab(icon: Icon(Icons.settings), text: 'Settings'),
-          ],
-        ),
+      appBar: AppBar(title: const Text('Family App Hub')),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tabController.index,
+        onDestinationSelected: (i) => _tabController.animateTo(i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.group_outlined), label: 'Family'),
+          NavigationDestination(icon: Icon(Icons.task_outlined), label: 'Tasks'),
+          NavigationDestination(icon: Icon(Icons.savings_outlined), label: 'Goals'),
+          NavigationDestination(icon: Icon(Icons.notifications_outlined), label: 'Notifcations'),
+          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+        ],
       ),
       body: TabBarView(
         controller: _tabController,
@@ -257,8 +264,26 @@ class _FamiliesScreenState extends State<FamiliesScreen>
               ),
             ],
           ),
-
-          // Tab 2: Settings / Placeholder Tab
+          // Tab 2: Tasks
+          const Center(
+            child: Text(
+              'Tasks Panel',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          const Center(
+            child: Text(
+              'Goals Panel',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+                    const Center(
+            child: Text(
+              'Notifications Panel',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          // Tab 5: Settings
           const Center(
             child: Text(
               'Settings & Configuration Panel',
