@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/splash/splash_screen.dart';
 
 import 'firebase_options.dart';
-import 'screens/families_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,8 +45,6 @@ Future<void> _setupPushNotifications() async {
     debugPrint('FCM error: $e');
   }
 }
-
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
