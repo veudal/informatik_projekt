@@ -165,7 +165,7 @@ class _FamiliesScreenState extends State<FamiliesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Family App Hub')),
+      appBar: AppBar(title: const Text('FamiGo - Wir-Spar - Spargel - Sparnest')),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabController.index,
         onDestinationSelected: (i) => _tabController.animateTo(i),
