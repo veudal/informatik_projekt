@@ -173,7 +173,7 @@ class _FamiliesScreenState extends State<FamiliesScreen>
           NavigationDestination(icon: Icon(Icons.group_outlined), label: 'Family'),
           NavigationDestination(icon: Icon(Icons.task_outlined), label: 'Tasks'),
           NavigationDestination(icon: Icon(Icons.savings_outlined), label: 'Goals'),
-          NavigationDestination(icon: Icon(Icons.notifications_outlined), label: 'Notifcations'),
+          NavigationDestination(icon: Icon(Icons.notifications_outlined), label: 'Activity'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
       ),

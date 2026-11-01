@@ -89,7 +89,7 @@ void onPressConfirm() {
                       obscureText: true,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        hintText: "Enter your email"
+                        hintText: "Enter your password"
                       ),
                     )
                   ],

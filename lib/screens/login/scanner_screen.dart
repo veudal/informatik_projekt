@@ -175,9 +175,8 @@ class _ExampleHome extends StatelessWidget {
               const SizedBox(height: 20),
               _buildItem(
                 context,
-                'Simple Mobile Scanner',
-                'Example of a simple mobile scanner instance without defining '
-                    'a controller.',
+                'Scanner',
+                'Scan the Family Invite QR Code',
                 const ScannerScreen(),
                 Icons.qr_code_scanner,
               ),
