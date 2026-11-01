@@ -16,7 +16,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late final AnimationController controller;
 
   @override
-
   void initState() {
     super.initState();
 
