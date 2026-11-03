@@ -1,6 +1,6 @@
+import '../wallet_details_screen.dart';
 import 'package:flutter/material.dart';
 
-import '../wallet_details_screen.dart';
 
 // Test-Werte von Selim, bis es Login und echte Daten vom Backend gibt.
 const String familyWalletId = 'b36bf7bb-e4d5-49eb-97a9-5c4b90bb6ecf';

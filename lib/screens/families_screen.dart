@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/family.dart';
 import 'wallet_details_screen.dart';
+import '../models/family.dart';
 import '../services/api_service.dart';
 
 class FamiliesScreen extends StatefulWidget {
