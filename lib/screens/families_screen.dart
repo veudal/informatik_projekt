@@ -125,7 +125,7 @@ class _FamiliesScreenState extends State<FamiliesScreen>
                               builder: (context) => WalletDetailsScreen(
                                 walletId: 'd2952f75-2f91-4a00-bb54-d061a4705fdf',
                                 familyWalletId: 'b36bf7bb-e4d5-49eb-97a9-5c4b90bb6ecf',
-                                token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGUiLCJpYXQiOjE3OTM1NDgwMjEsImV4cCI6MTc5MzYzNDQyMX0.21yc1uS-ihsYRyDrUqjQlkp0E4kzzM7YIvomx2R6mH0',
+                                token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGUiLCJpYXQiOjE3OTM3Mjg1NTQsImV4cCI6MTc5MzgxNDk1NH0.WmzOafC46Ckc2PA8tsEfQTFHuLMltEJ6RsOVgWJmXvo',
                                 userName: 'selim',
                               ),
                             ),
