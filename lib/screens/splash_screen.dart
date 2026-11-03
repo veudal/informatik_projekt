@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:informatik_projekt/screens/families/families_screen.dart';
+import 'package:informatik_projekt/screens/family/families_screen.dart';
 import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
-import 'package:informatik_projekt/screens/family_setup/setup_screen.dart';
+import 'package:informatik_projekt/screens/family/setup_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 
 class SplashScreen extends StatefulWidget {

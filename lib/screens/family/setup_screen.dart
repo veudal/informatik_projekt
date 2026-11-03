@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:informatik_projekt/widgets/create_family_button.dart';
 import 'package:informatik_projekt/widgets/join_family_button.dart';
-import 'package:informatik_projekt/screens/join_family/qr_scanner_screen.dart';
+import 'package:informatik_projekt/screens/family/qr_scanner_screen.dart';
 
 import 'create_family_screen.dart';
 

@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'screens/splash/splash_screen.dart';
+import 'screens/splash_screen.dart';
 
 import 'firebase_options.dart';
 

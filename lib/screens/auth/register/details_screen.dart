@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:birth_picker/birth_picker.dart';
 import 'package:informatik_projekt/services/api_service.dart';
-import 'package:informatik_projekt/screens/splash/splash_screen.dart';
+import 'package:informatik_projekt/screens/splash_screen.dart';
 
 class AddAccountInfoScreen extends StatefulWidget {
   const AddAccountInfoScreen({
