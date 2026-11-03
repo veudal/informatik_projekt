@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'package:informatik_projekt/models/family.dart';
 import 'package:informatik_projekt/services/api_service.dart';
+import 'package:informatik_projekt/screens/settings/settings_screen.dart';
+
 
 class FamiliesScreen extends StatefulWidget {
   const FamiliesScreen({super.key});
@@ -147,12 +149,7 @@ class _FamiliesScreenState extends State<FamiliesScreen>
           const Center(
             child: Text('Notifications Panel', style: TextStyle(fontSize: 16)),
           ),
-          const Center(
-            child: Text(
-              'Settings & Configuration Panel',
-              style: TextStyle(fontSize: 16),
-            ),
-          ),
+          const SettingsScreen(),
         ],
       ),
     );
