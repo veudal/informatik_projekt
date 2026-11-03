@@ -105,6 +105,34 @@ class ApiService {
       throw FamilyJoinException('Network error while joining the family: $e');
     }
   }
+
+  Future<Family> createFamily(String name) async {
+    final token = await storage.read(key: AppConfig.storageTokenKey);
+    final Uri uri = Uri.parse('${AppConfig.apiBaseUrl}/families');
+
+    try {
+      final http.Response response = await http.post(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+        body: {'name': name},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Family.fromJson(jsonDecode(response.body));
+      } else {
+        // Try to parse error message if available, otherwise use status code
+        String errorMessage = 'Failed to create family';
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (_) {}
+        throw Exception('$errorMessage (Status: ${response.statusCode})');
+      }
+    } catch (e) {
+      throw Exception('Network error while creating family: $e');
+    }
+  }
+
 }
 
 /// Thrown when joining a family via a scanned invite code fails.
