@@ -3,7 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 void main() {
   runApp(
-    const MaterialApp(title: 'Mobile Scanner Example', home: _ExampleHome()),
+    const MaterialApp(title: 'Scanner', home: _ExampleHome()),
   );
 }
 
@@ -70,7 +70,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Simple Mobile Scanner')),
+      appBar: AppBar(title: const Text('QR Scanner')),
       backgroundColor: Colors.black,
       body: Stack(
         children: [

@@ -8,6 +8,7 @@ import 'screens/splash/splash_screen.dart';
 
 import 'firebase_options.dart';
 
+import 'config/app_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -35,7 +36,7 @@ Future<void> _setupPushNotifications() async {
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       final token = await FirebaseMessaging.instance.getToken(
-        vapidKey: kIsWeb ? 'BJVJQ06DQ1EfLmp139h21lWR7Sjga7o0iNAoIbeeh2BIqEwsVU_xlGIvaXCxGZ4jwzJkeNyqrHNhUkzsMxZRVhM' : null,
+        vapidKey: kIsWeb ? AppConfig.vapidKey : null,
       );
       debugPrint('FCM TOKEN: $token');
     } else {
