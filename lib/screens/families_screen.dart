@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/family.dart';
+import 'wallet_details_screen.dart';
 import '../services/api_service.dart';
 
 class FamiliesScreen extends StatefulWidget {
@@ -117,6 +118,19 @@ class _FamiliesScreenState extends State<FamiliesScreen>
                           ],
                         ),
                         isThreeLine: true,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => WalletDetailsScreen(
+                                walletId: 'd2952f75-2f91-4a00-bb54-d061a4705fdf',
+                                familyWalletId: 'b36bf7bb-e4d5-49eb-97a9-5c4b90bb6ecf',
+                                token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGUiLCJpYXQiOjE3OTM1NDgwMjEsImV4cCI6MTc5MzYzNDQyMX0.21yc1uS-ihsYRyDrUqjQlkp0E4kzzM7YIvomx2R6mH0',
+                                userName: 'selim',
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
