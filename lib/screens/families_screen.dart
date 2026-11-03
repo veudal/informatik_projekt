@@ -13,8 +13,8 @@ class FamiliesScreen extends StatefulWidget {
 
 class _FamiliesScreenState extends State<FamiliesScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
   late Future<List<Family>> _familiesFuture;
+  late TabController _tabController;
   final ApiService _apiService = ApiService();
 
   @override
@@ -138,6 +138,7 @@ class _FamiliesScreenState extends State<FamiliesScreen>
               },
             ),
           ),
+
 
           // Tab 2: Settings / Placeholder Tab
           const Center(

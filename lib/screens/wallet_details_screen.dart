@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import '../models/transaction.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/api_service.dart';
-import '../models/transaction.dart';
+
 
 class WalletDetailsScreen extends StatefulWidget {
   final String walletId;
