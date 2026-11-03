@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:informatik_projekt/screens/login/login_screen.dart';
+import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -15,11 +15,11 @@ class SettingsScreen extends StatelessWidget {
             'Logout',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          content: const Text('Are you suffre you want to log out of your account?'),
+          content: const Text('Bist du dir sicher, dass du dich abmelden möchtest?'),
           actions: <Widget>[
             TextButton(
               child: const Text(
-                'Cancel',
+                'Abbrechen',
                 style: TextStyle(color: Colors.indigo),
               ),
               onPressed: () {
@@ -28,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             TextButton(
               child: const Text(
-                'Logout',
+                'Abmelden',
                 style: TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.bold,
@@ -64,7 +64,7 @@ class SettingsScreen extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Settings',
+              'Einstellungen',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -72,31 +72,31 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _buildSectionTitle('Account'),
+          _buildSectionTitle('Konto'),
           _buildSettingsTile(
             icon: Icons.person_outline,
-            title: 'Profile',
-            subtitle: 'Manage your account details',
+            title: 'Profil',
+            subtitle: 'Kontodetails verwalten',
             onTap: () {},
           ),
           _buildSettingsTile(
             icon: Icons.notifications_none,
-            title: 'Notifications',
-            subtitle: 'Control your alerts',
+            title: 'Benachrichtigungen',
+            subtitle: 'Alarme steuern',
             onTap: () {},
           ),
           const Divider(),
-          _buildSectionTitle('Application'),
+          _buildSectionTitle('Anwendung'),
           _buildSettingsTile(
             icon: Icons.info_outline,
-            title: 'About',
+            title: 'Über',
             subtitle: 'Version 1.0.0',
             onTap: () {},
           ),
           _buildSettingsTile(
             icon: Icons.help_outline,
-            title: 'Help & Support',
-            subtitle: 'Get assistance',
+            title: 'Hilfe & Support',
+            subtitle: 'Unterstützung erhalten',
             onTap: () {},
           ),
           const SizedBox(height: 40),

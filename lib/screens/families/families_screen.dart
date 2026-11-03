@@ -68,23 +68,23 @@ class _FamiliesScreenState extends State<FamiliesScreen>
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.group_outlined),
-            label: 'Family',
+            label: 'Familie',
           ),
           NavigationDestination(
             icon: Icon(Icons.assignment_outlined),
-            label: 'Tasks',
+            label: 'Aufgaben',
           ),
           NavigationDestination(
             icon: Icon(Icons.savings_outlined),
-            label: 'Goals',
+            label: 'Ziele',
           ),
           NavigationDestination(
             icon: Icon(Icons.notifications_outlined),
-            label: 'Activity',
+            label: 'Aktivität',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
+            label: 'Einstellungen',
           ),
         ],
       ),
@@ -102,10 +102,10 @@ class _FamiliesScreenState extends State<FamiliesScreen>
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       } else if (snapshot.hasError) {
-                        return Center(child: Text('Error: ${snapshot.error}'));
+                        return Center(child: Text('Fehler: ${snapshot.error}'));
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return const Center(
-                          child: Text('No families found in database.'),
+                          child: Text('Keine Familien in der Datenbank gefunden.'),
                         );
                       } else {
                         final families = snapshot.data!;
@@ -141,13 +141,13 @@ class _FamiliesScreenState extends State<FamiliesScreen>
             ],
           ),
           const Center(
-            child: Text('Tasks Panel', style: TextStyle(fontSize: 16)),
+            child: Text('Aufgaben-Panel', style: TextStyle(fontSize: 16)),
           ),
           const Center(
-            child: Text('Goals Panel', style: TextStyle(fontSize: 16)),
+            child: Text('Ziele-Panel', style: TextStyle(fontSize: 16)),
           ),
           const Center(
-            child: Text('Notifications Panel', style: TextStyle(fontSize: 16)),
+            child: Text('Benachrichtigungs-Panel', style: TextStyle(fontSize: 16)),
           ),
           const SettingsScreen(),
         ],

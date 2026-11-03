@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:informatik_projekt/screens/families/families_screen.dart';
-import 'package:informatik_projekt/screens/login/register_screen.dart';
+import 'package:informatik_projekt/screens/auth/register/credentials_register.dart';
 import 'package:informatik_projekt/screens/splash/splash_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 
@@ -39,7 +39,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   bool isConfirmButtonEnabled() {
-    return emailController.text.isNotEmpty && passwordController.text.isNotEmpty;
+    return emailController.text.isNotEmpty &&
+        passwordController.text.isNotEmpty;
   }
 
   void onPressConfirm() async {
@@ -58,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SnackBar(
             backgroundColor: Color(0xFFD32F2F),
             content: Text(
-              'Wrong email or password',
+              'Falsche E-Mail oder falsches Passwort',
               style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 20),
             ),
           ),
@@ -93,8 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
                   const Center(
                     child: Text(
-                      'Sign in',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      'Anmelden',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -103,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Email'),
+                        const Text('E-Mail'),
                         const SizedBox(height: 8),
                         TextField(
                           controller: emailController,
@@ -111,11 +115,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           enabled: !_isSubmitting,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
-                            hintText: "Enter your email",
+                            hintText: "Gib deine E-Mail ein",
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const Text('Password'),
+                        const Text('Passwordt'),
                         const SizedBox(height: 8),
                         TextField(
                           controller: passwordController,
@@ -123,39 +127,45 @@ class _LoginScreenState extends State<LoginScreen> {
                           enabled: !_isSubmitting,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
-                            hintText: "Enter your password",
+                            hintText: "Gib dein Passwort ein",
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 50),
                   ElevatedButton(
                     onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
                         ? onPressConfirm
                         : null,
-                    child: _isSubmitting 
+                    child: _isSubmitting
                         ? const SizedBox(
-                            height: 20, 
-                            width: 20, 
-                            child: CircularProgressIndicator(strokeWidth: 2)
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Confirm'),
+                        : const Text('Weiter'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 64),
                   RichText(
                     text: TextSpan(
-                      text: 'Create Account',
-                      style: TextStyle(color: Colors.blue),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RegisterAccountScreen(),
-                            ),
-                          );
-                        },
+                      children: [
+                        const TextSpan(text: 'Kein Konto?  ', style: TextStyle(color: Colors.black)),
+                        TextSpan(
+                          text: 'Erstelle eins!',
+                          style: TextStyle(color: Colors.blue),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const RegisterAccountScreen(),
+                                ),
+                              );
+                            },
+                        ),
+                      ],
                     ),
                   ),
                 ],

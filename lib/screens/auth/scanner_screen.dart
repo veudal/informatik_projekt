@@ -22,14 +22,14 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget _barcodePreview(Barcode? value) {
     if (value == null) {
       return const Text(
-        'Scan something!',
+        'QR-Code scannen',
         overflow: TextOverflow.fade,
         style: TextStyle(color: Colors.white),
       );
     }
 
     return Text(
-      value.displayValue ?? 'No display value.',
+      value.displayValue ?? 'Kein Code erkannt.',
       overflow: TextOverflow.fade,
       style: const TextStyle(color: Colors.white),
     );
@@ -41,7 +41,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     // set up the AlertDialog
     AlertDialog alert = AlertDialog(
-      title: Text("Extracted!"),
+      title: Text("Extrahiert!"),
       content: Text(content),
       actions: [okButton],
     );
@@ -153,7 +153,7 @@ class _ExampleHome extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Mobile Scanner Example',
+          'Mobile Scanner Beispiel',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -176,7 +176,7 @@ class _ExampleHome extends StatelessWidget {
               _buildItem(
                 context,
                 'Scanner',
-                'Scan the Family Invite QR Code',
+                'Scanne den Familien-Einladungs-QR-Code',
                 const ScannerScreen(),
                 Icons.qr_code_scanner,
               ),

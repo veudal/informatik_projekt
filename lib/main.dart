@@ -1,3 +1,4 @@
+import 'package:birth_picker/birth_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -9,15 +10,20 @@ import 'screens/splash/splash_screen.dart';
 import 'firebase_options.dart';
 
 import 'config/app_config.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('de_DE', null);
 
-  final isSupportedPlatform = kIsWeb ||
+  final isSupportedPlatform =
+      kIsWeb ||
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
   if (isSupportedPlatform) {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   }
 
   runApp(const MyApp());
@@ -51,14 +57,14 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Family Finance & Chores',
+      title: 'Familienfinanzen & Aufgaben',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
-        fontFamily: GoogleFonts.getFont('Plus Jakarta Sans').fontFamily
+        tooltipTheme: const TooltipThemeData(waitDuration: Duration(days: 1)),
+        fontFamily: GoogleFonts.getFont('Plus Jakarta Sans').fontFamily,
         // Alternative font: 'Inter'
       ),
 

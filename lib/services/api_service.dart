@@ -31,6 +31,38 @@ class ApiService {
     return true;
   }
 
+  Future<bool> isEmailRegistered(String email) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/check-email?email=$email'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    // Assuming 200 means registered, others mean not registered or error
+    return res.statusCode == 200;
+  }
+
+  Future<Map<String, dynamic>> register(String email, String password, String displayName, DateTime birthDate) async {
+    final res = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'displayName': displayName,
+        'birthDate': birthDate.toIso8601String(),
+        'role': 'admin'
+      }),
+    );
+    print(displayName);
+    print('register: ${res.statusCode} ${res.body}');
+    
+    return {
+      'success': res.statusCode == 200 || res.statusCode == 201,
+      'statusCode': res.statusCode,
+      'body': res.body,
+    };
+  }
+
+
   Future<http.Response> authGet(String path) async {
     final token = await storage.read(key: AppConfig.storageTokenKey);
     return http.get(
@@ -59,7 +91,7 @@ class ApiService {
         }
       } else {
         throw Exception(
-          'Failed to load families (Status: ${response.statusCode})',
+          'Fehler beim Laden der Familien (Status: ${response.statusCode})',
         );
       }
     } catch (e) {
@@ -96,7 +128,7 @@ class ApiService {
           throw FamilyJoinException('You are already a member of this family.');
         default:
           throw FamilyJoinException(
-            'Could not join this family (Status: ${response.statusCode}).',
+            'Diese Familie konnte nicht beigetreten werden (Status: ${response.statusCode}).',
           );
       }
     } on FamilyJoinException {

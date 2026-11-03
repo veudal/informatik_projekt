@@ -42,7 +42,7 @@ class CreateFamilyButton extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Create a New Family',
+                        'Neue Familie erstellen',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
@@ -50,7 +50,7 @@ class CreateFamilyButton extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Create your own Family',
+                        'Erstelle deine eigene Familie',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onPrimary.withValues(alpha: 0.85),
                         ),
