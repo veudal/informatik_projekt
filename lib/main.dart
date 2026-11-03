@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/families_screen.dart'; // Make sure this matches your folder name!
+import 'screens/main_navigation.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
-      home: const FamiliesScreen(),
+      home: const MainNavigation(),
       debugShowCheckedModeBanner: false,
     );
   }
