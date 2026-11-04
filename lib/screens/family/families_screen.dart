@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:informatik_projekt/models/family.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 import 'package:informatik_projekt/screens/settings/settings_screen.dart';
+import 'package:informatik_projekt/widgets/family_card.dart';
 
 
 class FamiliesScreen extends StatefulWidget {
@@ -103,34 +104,13 @@ class _FamiliesScreenState extends State<FamiliesScreen>
                         return const Center(child: CircularProgressIndicator());
                       } else if (snapshot.hasError) {
                         return Center(child: Text('Fehler: ${snapshot.error}'));
-                      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Center(
-                          child: Text('Keine Familien in der Datenbank gefunden.'),
-                        );
-                      } else {
+                      } 
+                      else {
                         final families = snapshot.data!;
                         return ListView.builder(
                           itemCount: families.length,
                           itemBuilder: (context, index) {
-                            final family = families[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              child: ListTile(
-                                leading: const CircleAvatar(
-                                  child: Icon(Icons.home),
-                                ),
-                                title: Text(
-                                  family.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                ),
-                                ),
-                                subtitle: Text('ID: ${family.id}'),
-                              ),
-                            );
+                            return FamilyCard(family: families[index]);
                           },
                         );
                       }

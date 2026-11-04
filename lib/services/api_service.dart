@@ -52,8 +52,6 @@ class ApiService {
         'role': 'admin'
       }),
     );
-    print(displayName);
-    print('register: ${res.statusCode} ${res.body}');
     
     return {
       'success': res.statusCode == 200 || res.statusCode == 201,
@@ -100,8 +98,7 @@ class ApiService {
     }
   }
 
-  /// Joins the family with the given [familyId] (a UUID scanned from a
-  /// family invite QR code).
+  /// Joins the family with the given [familyId].
   ///
   /// Expects the backend to provide: `POST /api/families/{familyId}/join`.
   Future<void> joinFamily(String familyId) async {

@@ -25,8 +25,7 @@ class SetupScreen extends StatelessWidget {
     );
 
     if (familyId != null) {
-      // Logic to actually join the family will go here,
-      // handled by the ApiService.joinFamily call in FamiliesScreen before
+      // TODO: Implement joining logic
     }
   }
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:informatik_projekt/screens/family/families_screen.dart';
 import 'package:informatik_projekt/screens/auth/register/credentials_register.dart';
 import 'package:informatik_projekt/screens/splash_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
