@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:informatik_projekt/screens/family/families_screen.dart';
 import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
 import 'package:informatik_projekt/screens/family/setup_screen.dart';
+import 'package:informatik_projekt/screens/main_navigation.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -66,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen>
           );
         } else {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const FamiliesScreen()),
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
           );
         }
       }

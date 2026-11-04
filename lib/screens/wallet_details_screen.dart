@@ -67,7 +67,7 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
   void _showTransferDialog() {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
-    bool isWithdrawal = true; // true = Geld abheben/senden, false = einzahlen
+    bool isWithdrawal = true; // true = Geld abheben/senden, false = anfordern
 
     showDialog(
       context: context,
@@ -92,7 +92,7 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: ChoiceChip(
-                          label: const Text('Einzahlen (+)', style: TextStyle(color: Colors.green)),
+                          label: const Text('Anfordern (+)', style: TextStyle(color: Colors.green)),
                           selected: !isWithdrawal,
                           onSelected: (val) => setStateDialog(() => isWithdrawal = false),
                           selectedColor: Colors.green.shade100,

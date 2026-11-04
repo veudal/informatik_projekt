@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:informatik_projekt/screens/settings/settings_screen.dart';
 
 import 'home/home_screen.dart';
 import 'notifications/notifications_screen.dart';
@@ -21,7 +22,7 @@ class _MainNavigationState extends State<MainNavigation> {
     TasksScreen(),
     SavingsScreen(),
     NotificationsScreen(),
-    ProfileScreen(),
+    SettingsScreen(),
   ];
 
   @override
@@ -44,7 +45,8 @@ class _MainNavigationState extends State<MainNavigation> {
             tooltip: '',
           ),
           NavigationDestination(
-            icon: Icon(Icons.checklist),
+            icon: Icon(Icons.assignment_outlined),
+            selectedIcon: Icon(Icons.assignment),
             label: 'Aufgaben',
             tooltip: '',
           ),

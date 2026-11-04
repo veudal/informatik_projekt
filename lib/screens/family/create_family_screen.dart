@@ -4,9 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:informatik_projekt/screens/main_navigation.dart';
 
 import '../../services/api_service.dart';
-import 'families_screen.dart';
 
 class CreateFamilyScreen extends StatefulWidget {
   const CreateFamilyScreen({super.key});
@@ -66,7 +66,7 @@ class _CreateFamilyScreenState extends State<CreateFamilyScreen> {
       // Redirect to families screen
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const FamiliesScreen()),
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
       );
     } catch (e) {

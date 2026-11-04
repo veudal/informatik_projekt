@@ -12,20 +12,20 @@ class SetupScreen extends StatelessWidget {
   const SetupScreen({super.key});
 
   Future<void> _openQrScanner(BuildContext context) async {
-    if (!Platform.isAndroid && !Platform.isIOS && !kIsWeb) {
+    if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
+      final String? familyId = await Navigator.of(context).push<String>(
+        MaterialPageRoute<String>(builder: (_) => const QrScannerScreen()),
+      );
+
+      if (familyId != null) {
+        // TODO: Implement joining logic
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Plattform is not supporting QR scanning.'),
         ),
       );
-      return;
-    }
-    final String? familyId = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(builder: (_) => const QrScannerScreen()),
-    );
-
-    if (familyId != null) {
-      // TODO: Implement joining logic
     }
   }
 
