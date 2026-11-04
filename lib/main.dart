@@ -25,7 +25,6 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
-
   runApp(const MyApp());
 
   // Not awaited, so it doesn't block the UI
@@ -67,7 +66,6 @@ class MyApp extends StatelessWidget {
         fontFamily: GoogleFonts.getFont('Plus Jakarta Sans').fontFamily,
         // Alternative font: 'Inter'
       ),
-
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );

@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import '../models/transaction.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,6 +8,7 @@ import '../config/app_config.dart';
 
 class ApiService {
   final storage = FlutterSecureStorage();
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
   /// Checks if a token exists in secure storage to determine if the user is logged in.
   Future<bool> isAuthenticated() async {
@@ -174,6 +175,54 @@ class ApiService {
       throw Exception('Network error while creating family: $e');
     }
   }
+
+  Future<int> getWalletBalance(String walletId, String token) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/wallets/balance/$walletId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return int.parse(response.body);
+    } else {
+      throw Exception('Fehler beim Laden des Kontostands');
+    }
+  }
+
+  Future<List<Transaction>> getTransactionsByWallet(String walletId, String token) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/transactions/wallet/$walletId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      Iterable data = jsonDecode(response.body);
+      return data.map((json) => Transaction.fromJson(json)).toList();
+    } else {
+      throw Exception('Fehler beim Laden der Transaktionen');
+    }
+  }
+
+  Future<void> createTransaction(String walletId, String familyWalletId, int amountCents, String kind, String note, String token) async {
+  final response = await http.post(
+    Uri.parse('$baseUrl/transactions'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode({
+      'walletId': walletId,
+      'familyWalletId': familyWalletId,
+      'amountCents': amountCents,
+      'kind': kind,
+      'note': note,
+    }),
+  );
+
+  if (response.statusCode != 200 && response.statusCode != 201) {
+    throw Exception('Fehler beim Erstellen der Transaktion (Status: ${response.statusCode})');
+  }
+ }
 }
 
 /// Thrown when joining a family via a scanned invite code fails.
