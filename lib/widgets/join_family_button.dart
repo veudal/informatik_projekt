@@ -44,7 +44,7 @@ class JoinFamilyButton extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Scan QR Code to Join a Family',
+                        'QR-Code scannen, um beizutreten',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
@@ -52,7 +52,7 @@ class JoinFamilyButton extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Point your camera at a family invite code',
+                        'Richte die Kamera auf einen Einladungscode',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onPrimary.withValues(alpha: 0.85),
                         ),

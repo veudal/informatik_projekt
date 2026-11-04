@@ -1,16 +1,22 @@
+import 'package:birth_picker/birth_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'screens/splash_screen.dart';
 
 import 'firebase_options.dart';
-import 'screens/families_screen.dart';
 
-Future<void> main() async {
+import 'config/app_config.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('de_DE', null);
 
-  // Added iOS support so your iOS builds get initialized too!
-  final isSupportedPlatform = kIsWeb ||
+  final isSupportedPlatform =
+      kIsWeb ||
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
@@ -18,32 +24,33 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+  }
 
-    // Request permissions and capture user authorization status
+  runApp(const MyApp());
+
+  // Not awaited, so it doesn't block the UI
+  if (isSupportedPlatform) _setupPushNotifications();
+}
+
+Future<void> _setupPushNotifications() async {
+  try {
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // Only fetch the token if permission is granted
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      try {
-        final token = await FirebaseMessaging.instance.getToken(
-          vapidKey: kIsWeb
-              ? 'BJVJQ06DQ1EfLmp139h21lWR7Sjga7o0iNAoIbeeh2BIqEwsVU_xlGIvaXCxGZ4jwzJkeNyqrHNhUkzsMxZRVhM'
-              : null,
-        );
-        debugPrint('FCM TOKEN: $token');
-      } catch (e) {
-        debugPrint('FCM ERROR fetching token: $e');
-      }
+      final token = await FirebaseMessaging.instance.getToken(
+        vapidKey: kIsWeb ? AppConfig.vapidKey : null,
+      );
+      debugPrint('FCM TOKEN: $token');
     } else {
-      debugPrint('FCM Note: User declined push notification permissions.');
+      debugPrint('FCM: user declined push permissions.');
     }
+  } catch (e) {
+    debugPrint('FCM error: $e');
   }
-
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -52,12 +59,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Family Finance & Chores',
+      title: 'Familienfinanzen & Aufgaben',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
+        tooltipTheme: const TooltipThemeData(waitDuration: Duration(days: 1)),
+        fontFamily: GoogleFonts.getFont('Plus Jakarta Sans').fontFamily,
+        // Alternative font: 'Inter'
       ),
-      home: const FamiliesScreen(),
+
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
