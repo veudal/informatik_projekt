@@ -27,7 +27,10 @@ class ApiService {
     );
     print('login: ${res.statusCode} ${res.body}');
     if (res.statusCode != 200) return false;
-    await storage.write(key: AppConfig.storageTokenKey, value: jsonDecode(res.body)['token']);
+    await storage.write(
+      key: AppConfig.storageTokenKey,
+      value: jsonDecode(res.body)['token'],
+    );
     return true;
   }
 
@@ -40,7 +43,12 @@ class ApiService {
     return res.statusCode == 200;
   }
 
-  Future<Map<String, dynamic>> register(String email, String password, String displayName, DateTime birthDate) async {
+  Future<Map<String, dynamic>> register(
+    String email,
+    String password,
+    String displayName,
+    DateTime birthDate,
+  ) async {
     final res = await http.post(
       Uri.parse('${AppConfig.apiBaseUrl}/auth/register'),
       headers: {'Content-Type': 'application/json'},
@@ -49,17 +57,16 @@ class ApiService {
         'password': password,
         'displayName': displayName,
         'birthDate': birthDate.toIso8601String(),
-        'role': 'admin'
+        'role': 'admin',
       }),
     );
-    
+
     return {
       'success': res.statusCode == 200 || res.statusCode == 201,
       'statusCode': res.statusCode,
       'body': res.body,
     };
   }
-
 
   Future<http.Response> authGet(String path) async {
     final token = await storage.read(key: AppConfig.storageTokenKey);
@@ -69,33 +76,37 @@ class ApiService {
     );
   }
 
-  Future<List<Family>> getFamily() async {
-    try {
-      final token = await storage.read(key: AppConfig.storageTokenKey);
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/family'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+  /// Returns the user's family, or null if the user has none.
+  Future<Family?> getFamily() async {
+    final token = await storage.read(key: AppConfig.storageTokenKey);
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/family'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
-      if (response.statusCode == 200) {
-        final dynamic decodedData = jsonDecode(response.body);
+    // No family is a valid state
+    if (response.statusCode == 204 || response.statusCode == 404) return null;
 
-        if (decodedData is List) {
-          return decodedData.map((json) => Family.fromJson(json)).toList();
-        } else if (decodedData is Map<String, dynamic>) {
-          return [Family.fromJson(decodedData)];
-        } else {
-          throw Exception('Unexpected data format from server');
-        }
-      } else {
-        throw Exception(
-          'Fehler beim Laden der Familien (Status: ${response.statusCode})',
-        );
-      }
-    } catch (e) {
-      print('Error in getFamily: $e');
-      throw Exception('Network error: $e');
+    if (response.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired');
     }
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load family (Status: ${response.statusCode})');
+    }
+
+    final body = response.body.trim();
+    if (body.isEmpty || body == 'null') return null;
+
+    final decoded = jsonDecode(body);
+    if (decoded == null) return null;
+    if (decoded is List) {
+      return decoded.isEmpty ? null : Family.fromJson(decoded.first);
+    }
+    if (decoded is Map<String, dynamic>) return Family.fromJson(decoded);
+
+    throw Exception('Unexpected data format from server');
   }
 
   /// Joins the family with the given [familyId].
@@ -103,7 +114,9 @@ class ApiService {
   /// Expects the backend to provide: `POST /api/families/{familyId}/join`.
   Future<void> joinFamily(String familyId) async {
     final token = await storage.read(key: AppConfig.storageTokenKey);
-    final Uri uri = Uri.parse('${AppConfig.apiBaseUrl}/families/$familyId/join');
+    final Uri uri = Uri.parse(
+      '${AppConfig.apiBaseUrl}/families/$familyId/join',
+    );
 
     try {
       final http.Response response = await http.post(
@@ -161,7 +174,6 @@ class ApiService {
       throw Exception('Network error while creating family: $e');
     }
   }
-
 }
 
 /// Thrown when joining a family via a scanned invite code fails.

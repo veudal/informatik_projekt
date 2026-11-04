@@ -60,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen>
       _retryTimer?.cancel();
 
       if (mounted) {
-        if (families.isEmpty) {
+        if (families == null) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const SetupScreen()),
           );
