@@ -6,7 +6,6 @@ class Family {
   Family({required this.id, required this.name, this.createdAt});
 
   factory Family.fromJson(Map<String, dynamic> json) {
-    // Check both snake_case and camelCase just in case
     var dateString = json['createdAt'];
 
     return Family(

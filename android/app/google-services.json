@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "533994402785",
+    "project_id": "informatik-projekt-c884e",
+    "storage_bucket": "informatik-projekt-c884e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:533994402785:android:bd1736864dea810dd9d8a0",
+        "android_client_info": {
+          "package_name": "com.example.informatik_projekt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBt0KHHWXQGw5bUTORSYybIRSZlMPKRwIk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
