@@ -1,25 +1,14 @@
 import 'dart:convert';
 import '../models/transaction.dart';
-
-<<<<<<< HEAD
-=======
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
->>>>>>> origin/main
 
 import '../models/family.dart';
 import '../config/app_config.dart';
 
-import 'package:http/http.dart' as http;
-
 class ApiService {
-<<<<<<< HEAD
-  // Use 10.0.2.2:1337 for Android Emulator, localhost:1337 for iOS/Web/Desktop
-  //static const String baseUrl = 'https://informatik-projekt-backend.onrender.com/api';
-  static const String baseUrl = 'http://localhost:1337/api';
-=======
   final storage = FlutterSecureStorage();
->>>>>>> origin/main
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
   /// Checks if a token exists in secure storage to determine if the user is logged in.
   Future<bool> isAuthenticated() async {

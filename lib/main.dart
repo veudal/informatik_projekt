@@ -1,17 +1,10 @@
-<<<<<<< HEAD
-
-import 'screens/main_navigation.dart';
-=======
 import 'package:birth_picker/birth_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
->>>>>>> origin/main
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-<<<<<<< HEAD
-=======
 import 'screens/splash_screen.dart';
 
 import 'firebase_options.dart';
@@ -32,8 +25,6 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
->>>>>>> origin/main
-
   runApp(const MyApp());
 
   // Not awaited, so it doesn't block the UI
@@ -75,12 +66,7 @@ class MyApp extends StatelessWidget {
         fontFamily: GoogleFonts.getFont('Plus Jakarta Sans').fontFamily,
         // Alternative font: 'Inter'
       ),
-<<<<<<< HEAD
-      home: const MainNavigation(),
-=======
-
       home: const SplashScreen(),
->>>>>>> origin/main
       debugShowCheckedModeBanner: false,
     );
   }
