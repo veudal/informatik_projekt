@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
-import '../models/transaction.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../services/api_service.dart';
 
+import '../models/transaction.dart';
+
+import 'package:fl_chart/fl_chart.dart';
+
+import '../services/api_service.dart';
 
 class WalletDetailsScreen extends StatefulWidget {
   final String walletId;
-  final String familyWalletId; // Neu: Benötigt für die Transaktion
-  final String token;
-  final String userName;
+  final String? familyWalletId;
+  final String accountName;
+  final bool isFamilyWallet;
+  final int? initialBalanceCents;
 
   const WalletDetailsScreen({
     super.key,
     required this.walletId,
     required this.familyWalletId,
-    required this.token,
-    this.userName = 'Familienmitglied',
+    required this.accountName,
+    required this.isFamilyWallet,
+    this.initialBalanceCents,
   });
 
   @override
@@ -39,18 +43,36 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchData() async {
-    final balance = await _apiService.getWalletBalance(widget.walletId, widget.token);
-    final transactions = await _apiService.getTransactionsByWallet(widget.walletId, widget.token);
-    
+    if (widget.isFamilyWallet) {
+      final balance = widget.initialBalanceCents;
+      if (balance == null) {
+        throw Exception(
+          'Der Kontostand des Familienkontos ist nicht verfügbar',
+        );
+      }
+      return {'balance': balance, 'transactions': <Transaction>[]};
+    }
+
+    final balance = await _apiService.getWalletBalance(widget.walletId);
+    final transactions = await _apiService.getTransactionsByWallet(
+      widget.walletId,
+    );
+
     transactions.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return {'balance': balance, 'transactions': transactions};
   }
 
-  List<FlSpot> _generateChartData(int currentBalance, List<Transaction> transactions) {
+  List<FlSpot> _generateChartData(
+    int currentBalance,
+    List<Transaction> transactions,
+  ) {
     if (transactions.isEmpty) return [FlSpot(0, currentBalance / 100)];
-    
+
     List<FlSpot> spots = [];
-    int totalSumChange = transactions.fold(0, (sum, tx) => sum + tx.amountCents);
+    int totalSumChange = transactions.fold(
+      0,
+      (sum, tx) => sum + tx.amountCents,
+    );
     double runningBalance = (currentBalance - totalSumChange) / 100;
 
     spots.add(FlSpot(0, runningBalance));
@@ -59,7 +81,7 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
       runningBalance += (transactions[i].amountCents / 100);
       spots.add(FlSpot((i + 1).toDouble(), runningBalance));
     }
-    
+
     return spots;
   }
 
@@ -83,18 +105,26 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                     children: [
                       Expanded(
                         child: ChoiceChip(
-                          label: const Text('Senden (-)', style: TextStyle(color: Colors.red)),
+                          label: const Text(
+                            'Senden (-)',
+                            style: TextStyle(color: Colors.red),
+                          ),
                           selected: isWithdrawal,
-                          onSelected: (val) => setStateDialog(() => isWithdrawal = true),
+                          onSelected: (val) =>
+                              setStateDialog(() => isWithdrawal = true),
                           selectedColor: Colors.red.shade100,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: ChoiceChip(
-                          label: const Text('Anfordern (+)', style: TextStyle(color: Colors.green)),
+                          label: const Text(
+                            'Anfordern (+)',
+                            style: TextStyle(color: Colors.green),
+                          ),
                           selected: !isWithdrawal,
-                          onSelected: (val) => setStateDialog(() => isWithdrawal = false),
+                          onSelected: (val) =>
+                              setStateDialog(() => isWithdrawal = false),
                           selectedColor: Colors.green.shade100,
                         ),
                       ),
@@ -103,13 +133,21 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Betrag in €', border: OutlineInputBorder()),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Betrag in €',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: noteController,
-                    decoration: const InputDecoration(labelText: 'Verwendungszweck / Notiz', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Verwendungszweck / Notiz',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ],
               ),
@@ -120,7 +158,9 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final double? euroAmount = double.tryParse(amountController.text.replaceAll(',', '.'));
+                    final double? euroAmount = double.tryParse(
+                      amountController.text.replaceAll(',', '.'),
+                    );
                     if (euroAmount == null || euroAmount <= 0) return;
 
                     // Betrag in Cent umrechnen (positiv oder negativ je nach Auswahl)
@@ -129,27 +169,39 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                       amountCents = -amountCents;
                     }
 
+                    final familyWalletId = widget.familyWalletId;
+                    if (familyWalletId == null) return;
+
                     try {
                       await _apiService.createTransaction(
                         widget.walletId,
-                        widget.familyWalletId,
+                        familyWalletId,
                         amountCents,
                         'manual',
-                        noteController.text.isEmpty ? 'Überweisung' : noteController.text,
-                        widget.token,
+                        noteController.text.isEmpty
+                            ? 'Überweisung'
+                            : noteController.text,
                       );
 
                       if (mounted) {
                         Navigator.pop(context);
                         _loadWalletData(); // UI aktualisieren (Saldo & Graph neu laden)
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Transaktion erfolgreich ausgeführt!'), backgroundColor: Colors.green),
+                          const SnackBar(
+                            content: Text(
+                              'Transaktion erfolgreich ausgeführt!',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
                         );
                       }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red),
+                          SnackBar(
+                            content: Text('Fehler: $e'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                       }
                     }
@@ -167,12 +219,19 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kontodetails')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showTransferDialog,
-        icon: const Icon(Icons.send),
-        label: const Text('Überweisen'),
+      appBar: AppBar(
+        title: Text(
+          widget.isFamilyWallet ? 'Familienkonto' : 'Persönliches Konto',
+        ),
       ),
+      floatingActionButton:
+          widget.isFamilyWallet || widget.familyWalletId == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _showTransferDialog,
+              icon: const Icon(Icons.send),
+              label: const Text('Überweisen'),
+            ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _walletData,
         builder: (context, snapshot) {
@@ -183,7 +242,8 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
           }
 
           final balance = snapshot.data!['balance'] as int;
-          final transactions = snapshot.data!['transactions'] as List<Transaction>;
+          final transactions =
+              snapshot.data!['transactions'] as List<Transaction>;
           final balanceEuro = (balance / 100).toStringAsFixed(2);
           final reversedTransactions = transactions.reversed.toList();
 
@@ -192,24 +252,47 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.userName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey)),
+                Text(
+                  widget.accountName,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text('Saldo = $balanceEuro €', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                Text(
+                  'Saldo = $balanceEuro €',
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
+                ),
                 const SizedBox(height: 20),
-                
-                const Text('Verlauf:', style: TextStyle(fontWeight: FontWeight.bold)),
+
+                const Text(
+                  'Verlauf:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 180,
                   child: LineChart(
                     LineChartData(
-                      gridData: const FlGridData(show: true, drawVerticalLine: false),
+                      gridData: const FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                      ),
                       titlesData: FlTitlesData(
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 45,
-                            getTitlesWidget: (value, meta) => Text('${value.toInt()}€', style: const TextStyle(fontSize: 10)),
+                            getTitlesWidget: (value, meta) => Text(
+                              '${value.toInt()}€',
+                              style: const TextStyle(fontSize: 10),
+                            ),
                           ),
                         ),
                         bottomTitles: AxisTitles(
@@ -219,20 +302,31 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                             interval: 1,
                             getTitlesWidget: (value, meta) {
                               int index = value.toInt();
-                              if (index == 0 && transactions.isNotEmpty) return const Text('Start', style: TextStyle(fontSize: 9));
+                              if (index == 0 && transactions.isNotEmpty)
+                                return const Text(
+                                  'Start',
+                                  style: TextStyle(fontSize: 9),
+                                );
                               if (index > 0 && index <= transactions.length) {
                                 final tx = transactions[index - 1];
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text('${tx.createdAt.day}.${tx.createdAt.month}.', style: const TextStyle(fontSize: 9)),
+                                  child: Text(
+                                    '${tx.createdAt.day}.${tx.createdAt.month}.',
+                                    style: const TextStyle(fontSize: 9),
+                                  ),
                                 );
                               }
                               return const Text('');
                             },
                           ),
                         ),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
                       borderData: FlBorderData(show: true),
                       lineBarsData: [
@@ -242,7 +336,10 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                           color: Colors.indigo,
                           barWidth: 3,
                           dotData: const FlDotData(show: true),
-                          belowBarData: BarAreaData(show: true, color: Colors.indigo.withOpacity(0.15)),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            color: Colors.indigo.withOpacity(0.15),
+                          ),
                         ),
                       ],
                     ),
@@ -250,7 +347,17 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                 ),
 
                 const SizedBox(height: 20),
-                const Text('Transaktionen:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  widget.isFamilyWallet
+                      ? 'Transaktionen für das Familienkonto werden vom Backend '
+                            'derzeit nicht bereitgestellt.'
+                      : 'Transaktionen:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: widget.isFamilyWallet ? 14 : 16,
+                    color: widget.isFamilyWallet ? Colors.grey : null,
+                  ),
+                ),
                 const SizedBox(height: 8),
 
                 Expanded(
@@ -258,30 +365,53 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                     itemCount: reversedTransactions.length,
                     itemBuilder: (context, index) {
                       final tx = reversedTransactions[index];
-                      final amountEuro = (tx.amountCents / 100).toStringAsFixed(2);
+                      final amountEuro = (tx.amountCents / 100).toStringAsFixed(
+                        2,
+                      );
                       final isPositive = tx.amountCents >= 0;
-                      final dateFormatted = '${tx.createdAt.day}.${tx.createdAt.month}.${tx.createdAt.year} ${tx.createdAt.hour.toString().padLeft(2, '0')}:${tx.createdAt.minute.toString().padLeft(2, '0')}';
+                      final dateFormatted =
+                          '${tx.createdAt.day}.${tx.createdAt.month}.${tx.createdAt.year} ${tx.createdAt.hour.toString().padLeft(2, '0')}:${tx.createdAt.minute.toString().padLeft(2, '0')}';
 
                       return Card(
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: isPositive ? Colors.green.shade100 : Colors.red.shade100,
-                            child: Icon(isPositive ? Icons.arrow_downward : Icons.arrow_upward, color: isPositive ? Colors.green : Colors.red),
+                            backgroundColor: isPositive
+                                ? Colors.green.shade100
+                                : Colors.red.shade100,
+                            child: Icon(
+                              isPositive
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward,
+                              color: isPositive ? Colors.green : Colors.red,
+                            ),
                           ),
-                          title: Text(tx.kind.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            tx.kind.toUpperCase(),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(tx.note.isEmpty ? 'Keine Notiz' : tx.note),
                               const SizedBox(height: 2),
-                              Text(dateFormatted, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text(
+                                dateFormatted,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                           trailing: Text(
                             '${isPositive ? '+' : ''}$amountEuro €',
-                            style: TextStyle(color: isPositive ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 15),
+                            style: TextStyle(
+                              color: isPositive ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                       );
