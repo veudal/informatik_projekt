@@ -298,7 +298,26 @@ class ApiService {
     }
     throw Exception('Fehler beim Laden der Transaktionen');
   }
+  
+  Future<List<Transaction>> getTransactionsByFamilyWallet(String familyWalletId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/transactions/family-wallet/$familyWalletId'),
+      // HIER IST DER FIX: Wir nutzen die gleiche Methode für die Header wie überall sonst auch!
+      headers: await _authorizationHeaders(), 
+    );
 
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Transaction.fromJson(json)).toList();
+    } else if (response.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired');
+    } else {
+      // Mit Statuscode, damit wir beim nächsten Mal sofort wissen, was das Backend sagt
+      throw Exception('Fehler beim Laden der Familienkonto-Transaktionen (Status: ${response.statusCode})');
+    }
+  }
+  
   Future<void> createTransaction(
     String walletId,
     String familyWalletId,

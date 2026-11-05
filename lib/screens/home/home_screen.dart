@@ -136,35 +136,34 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final account = data.accounts[index];
-        final isFamilyAccount = account.wallet.kind.toLowerCase() == 'family';
-        final balanceCents = account.balanceCents;
-        final balance = balanceCents == null
-            ? 'Nicht verfügbar'
-            : (balanceCents / 100).toStringAsFixed(2).replaceAll('.', ',');
+final isFamilyAccount = account.wallet.kind.toLowerCase() == 'family';
 
-        return Card(
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            title: Text(account.wallet.name),
-            trailing: Text(balanceCents == null ? balance : '$balance €'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => WalletDetailsScreen(
-                    walletId: account.wallet.id,
-                    familyWalletId: isFamilyAccount
-                        ? null
-                        : data.familyWalletId,
-                    accountName: account.wallet.name,
-                    isFamilyWallet: isFamilyAccount,
-                    initialBalanceCents: balanceCents,
-                  ),
-                ),
-              );
+// Fallback: Wenn balanceCents null ist, setze es auf 0
+final balanceCents = account.balanceCents ?? 0; 
+final balance = (balanceCents / 100).toStringAsFixed(2).replaceAll('.', ',');
+
+return Card(
+  child: ListTile(
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: 20,
+      vertical: 8,
+    ),
+    title: Text(account.wallet.name),
+    trailing: Text('$balance €'), // Hier wird jetzt immer der Betrag mit € angezeigt
+    onTap: () {
+      Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => WalletDetailsScreen(
+      walletId: account.wallet.id,
+      familyWalletId: isFamilyAccount ? null : data.familyWalletId,
+      accountName: account.wallet.name,
+      isFamilyWallet: isFamilyAccount,
+      initialBalanceCents: balanceCents,
+      familyId: data.family?.id, // <-- Hier die familyId übergeben
+    ),
+  ),
+);
             },
           ),
         );

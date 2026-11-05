@@ -5,6 +5,7 @@ import '../models/transaction.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../services/api_service.dart';
+import '../models/wallet.dart';
 
 class WalletDetailsScreen extends StatefulWidget {
   final String walletId;
@@ -13,14 +14,17 @@ class WalletDetailsScreen extends StatefulWidget {
   final bool isFamilyWallet;
   final int? initialBalanceCents;
 
-  const WalletDetailsScreen({
-    super.key,
-    required this.walletId,
-    required this.familyWalletId,
-    required this.accountName,
-    required this.isFamilyWallet,
-    this.initialBalanceCents,
-  });
+  final String? familyId;
+
+const WalletDetailsScreen({
+  super.key,
+  required this.walletId,
+  required this.familyWalletId,
+  required this.accountName,
+  required this.isFamilyWallet,
+  this.initialBalanceCents,
+  this.familyId, // <-- Im Konstruktor aufnehmen
+});
 
   @override
   State<WalletDetailsScreen> createState() => _WalletDetailsScreenState();
@@ -44,15 +48,23 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
 
   Future<Map<String, dynamic>> _fetchData() async {
     if (widget.isFamilyWallet) {
-      final balance = widget.initialBalanceCents;
-      if (balance == null) {
-        throw Exception(
-          'Der Kontostand des Familienkontos ist nicht verfügbar',
-        );
+      // Transaktionen für das Familienkonto laden
+      final transactions = await _apiService.getTransactionsByFamilyWallet(
+        widget.walletId,
+      );
+      transactions.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      // Kontostand dynamisch aus den Transaktionen berechnen!
+      // Da eine User-Überweisung negativ ist (-32€), ist es für das Familienkonto ein Zufluss (+32€).
+      int calculatedBalanceCents = 0;
+      for (var tx in transactions) {
+        calculatedBalanceCents += (-tx.amountCents);
       }
-      return {'balance': balance, 'transactions': <Transaction>[]};
+
+      return {'balance': calculatedBalanceCents, 'transactions': transactions};
     }
 
+    // Für persönliche Konten:
     final balance = await _apiService.getWalletBalance(widget.walletId);
     final transactions = await _apiService.getTransactionsByWallet(
       widget.walletId,
@@ -66,10 +78,22 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
     int currentBalance,
     List<Transaction> transactions,
   ) {
-    if (transactions.isEmpty) return [FlSpot(0, currentBalance / 100)];
+    // Für das Familienkonto müssen wir die Beträge für den Graphen invertieren (+/-),
+    // da eine Abbuchung des Users dort als Einzahlung (+ Guthaben) verbucht wird.
+    final adjustedTransactions = widget.isFamilyWallet
+        ? transactions.map((tx) => Transaction(
+            id: tx.id,
+            amountCents: -tx.amountCents,
+            kind: tx.kind,
+            note: tx.note,
+            createdAt: tx.createdAt,
+          )).toList()
+        : transactions;
+
+    if (adjustedTransactions.isEmpty) return [FlSpot(0, currentBalance / 100)];
 
     List<FlSpot> spots = [];
-    int totalSumChange = transactions.fold(
+    int totalSumChange = adjustedTransactions.fold(
       0,
       (sum, tx) => sum + tx.amountCents,
     );
@@ -77,8 +101,8 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
 
     spots.add(FlSpot(0, runningBalance));
 
-    for (int i = 0; i < transactions.length; i++) {
-      runningBalance += (transactions[i].amountCents / 100);
+    for (int i = 0; i < adjustedTransactions.length; i++) {
+      runningBalance += (adjustedTransactions[i].amountCents / 100);
       spots.add(FlSpot((i + 1).toDouble(), runningBalance));
     }
 
@@ -86,135 +110,137 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
   }
 
   // Dialog für Überweisung / Transaktion öffnen
-  void _showTransferDialog() {
-    final amountController = TextEditingController();
-    final noteController = TextEditingController();
-    bool isWithdrawal = true; // true = Geld abheben/senden, false = anfordern
+  void _showTransferDialog() async {
+  final amountController = TextEditingController();
+  final noteController = TextEditingController();
+  bool isWithdrawal = true; // true = Senden, false = Anfordern
+  
+  // Verfügbare Zielkonten laden
+  List<WalletAccount> availableWallets = [];
+  try {
+    if (widget.familyId != null) {
+      final memberWallets = await _apiService.getWalletsForFamily(widget.familyId!);
+      final familyWallets = await _apiService.getFamilyWalletsForFamily(widget.familyId!);
+      availableWallets = [...familyWallets, ...memberWallets];
+      // Das eigene Konto aus der Auswahlliste entfernen, damit man nicht an sich selbst überweist
+      availableWallets.removeWhere((w) => w.id == widget.walletId);
+    }
+  } catch (_) {}
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Geld überweisen / Transaktion'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ChoiceChip(
-                          label: const Text(
-                            'Senden (-)',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                          selected: isWithdrawal,
-                          onSelected: (val) =>
-                              setStateDialog(() => isWithdrawal = true),
-                          selectedColor: Colors.red.shade100,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ChoiceChip(
-                          label: const Text(
-                            'Anfordern (+)',
-                            style: TextStyle(color: Colors.green),
-                          ),
-                          selected: !isWithdrawal,
-                          onSelected: (val) =>
-                              setStateDialog(() => isWithdrawal = false),
-                          selectedColor: Colors.green.shade100,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: amountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+  WalletAccount? selectedTargetWallet = availableWallets.isNotEmpty ? availableWallets.first : null;
+
+  if (!mounted) return;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text('Geld überweisen'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Dropdown für Zielkonto-Auswahl
+                if (availableWallets.isNotEmpty)
+                  DropdownButtonFormField<WalletAccount>(
+                    value: selectedTargetWallet,
                     decoration: const InputDecoration(
-                      labelText: 'Betrag in €',
+                      labelText: 'Zielkonto',
                       border: OutlineInputBorder(),
                     ),
+                    items: availableWallets.map((wallet) {
+  return DropdownMenuItem(
+    value: wallet,
+    child: Text(wallet.name),
+  );
+}).toList(), // <-- WICHTIG: Hier müssen Klammern hin!
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        selectedTargetWallet = val;
+                      });
+                    },
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Verwendungszweck / Notiz',
-                      border: OutlineInputBorder(),
-                    ),
+                if (availableWallets.isNotEmpty) const SizedBox(height: 16),
+                
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Betrag in €',
+                    border: OutlineInputBorder(),
                   ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Abbrechen'),
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final double? euroAmount = double.tryParse(
-                      amountController.text.replaceAll(',', '.'),
-                    );
-                    if (euroAmount == null || euroAmount <= 0) return;
-
-                    // Betrag in Cent umrechnen (positiv oder negativ je nach Auswahl)
-                    int amountCents = (euroAmount * 100).round();
-                    if (isWithdrawal) {
-                      amountCents = -amountCents;
-                    }
-
-                    final familyWalletId = widget.familyWalletId;
-                    if (familyWalletId == null) return;
-
-                    try {
-                      await _apiService.createTransaction(
-                        widget.walletId,
-                        familyWalletId,
-                        amountCents,
-                        'manual',
-                        noteController.text.isEmpty
-                            ? 'Überweisung'
-                            : noteController.text,
-                      );
-
-                      if (mounted) {
-                        Navigator.pop(context);
-                        _loadWalletData(); // UI aktualisieren (Saldo & Graph neu laden)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Transaktion erfolgreich ausgeführt!',
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Fehler: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Ausführen'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Verwendungszweck / Notiz',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ],
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Abbrechen'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final double? euroAmount = double.tryParse(
+                    amountController.text.replaceAll(',', '.'),
+                  );
+                  if (euroAmount == null || euroAmount <= 0) return;
+
+                  int amountCents = (euroAmount * 100).round();
+                  if (isWithdrawal) {
+                    amountCents = -amountCents; // Abzug beim Sender
+                  }
+
+                  // Wir nutzen die ID des ausgewählten Zielkontos oder das Standard-Familienkonto als Fallback
+                  final targetFamilyWalletId = selectedTargetWallet?.id ?? widget.familyWalletId;
+                  if (targetFamilyWalletId == null) return;
+
+                  try {
+                    await _apiService.createTransaction(
+                      widget.walletId,
+                      targetFamilyWalletId,
+                      amountCents,
+                      'transfer',
+                      noteController.text.isEmpty ? 'Überweisung' : noteController.text,
+                    );
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                      _loadWalletData(); // UI aktualisieren
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Überweisung erfolgreich ausgeführt!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Fehler: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Ausführen'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -347,16 +373,9 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                 ),
 
                 const SizedBox(height: 20),
-                Text(
-                  widget.isFamilyWallet
-                      ? 'Transaktionen für das Familienkonto werden vom Backend '
-                            'derzeit nicht bereitgestellt.'
-                      : 'Transaktionen:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: widget.isFamilyWallet ? 14 : 16,
-                    color: widget.isFamilyWallet ? Colors.grey : null,
-                  ),
+                const Text(
+                  'Transaktionen:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
 
@@ -365,10 +384,12 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                     itemCount: reversedTransactions.length,
                     itemBuilder: (context, index) {
                       final tx = reversedTransactions[index];
-                      final amountEuro = (tx.amountCents / 100).toStringAsFixed(
-                        2,
-                      );
-                      final isPositive = tx.amountCents >= 0;
+                      
+                      // HIER: Vorzeichen für das Familienkonto umkehren
+                      final displayAmountCents = widget.isFamilyWallet ? -tx.amountCents : tx.amountCents;
+                      final amountEuro = (displayAmountCents / 100).toStringAsFixed(2);
+                      final isPositive = displayAmountCents >= 0;
+                      
                       final dateFormatted =
                           '${tx.createdAt.day}.${tx.createdAt.month}.${tx.createdAt.year} ${tx.createdAt.hour.toString().padLeft(2, '0')}:${tx.createdAt.minute.toString().padLeft(2, '0')}';
 
@@ -376,6 +397,7 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         child: ListTile(
+                          // HIER KOMMT DER CODE HIN:
                           leading: CircleAvatar(
                             backgroundColor: isPositive
                                 ? Colors.green.shade100
@@ -405,6 +427,7 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                               ),
                             ],
                           ),
+                          // UND HIER DER ZWEITE TEIL:
                           trailing: Text(
                             '${isPositive ? '+' : ''}$amountEuro €',
                             style: TextStyle(
