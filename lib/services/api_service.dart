@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../models/calendar_entry.dart';
 import '../models/family.dart';
 import '../models/transaction.dart';
 import '../models/wallet.dart';
@@ -98,6 +99,21 @@ class ApiService {
       Uri.parse('${AppConfig.apiBaseUrl}$path'),
       headers: await _authorizationHeaders(),
     );
+  }
+
+  Future<List<CalendarEntry>> getCalendarEntries(String familyId) async {
+    final response = await authGet('/users/family/$familyId');
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Kalender konnte nicht geladen werden (Status: ${response.statusCode})',
+      );
+    }
+
+    final members = jsonDecode(response.body) as List<dynamic>;
+    return members
+        .where((member) => member['birthDate'] != null)
+        .map((member) => CalendarEntry.fromMember(member))
+        .toList();
   }
 
   Future<Family?> getFamily() async {

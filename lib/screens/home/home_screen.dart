@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/family.dart';
 import '../../models/wallet.dart';
 import '../../services/api_service.dart';
+import '../calendar/calendar.dart';
 import '../wallet_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -108,11 +109,20 @@ class _HomeScreenState extends State<HomeScreen> {
     if (data.family == null) {
       return const Center(child: Text('Du bist keiner Familie zugeordnet.'));
     }
+    // Accounts, optional family wallet setup, and the calendar as last item.
+    final itemCount =
+        data.accounts.length + (data.familyWalletId == null ? 1 : 0) + 1;
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: data.accounts.length + (data.familyWalletId == null ? 1 : 0),
+      itemCount: itemCount,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
+        if (index == itemCount - 1) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 24),
+            child: Calendar(familyId: data.family!.id),
+          );
+        }
         if (index >= data.accounts.length) {
           return Card(
             child: ListTile(
