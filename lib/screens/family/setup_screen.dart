@@ -1,7 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
+import 'package:informatik_projekt/screens/splash_screen.dart';
+import 'package:informatik_projekt/services/api_service.dart';
 import 'package:informatik_projekt/widgets/create_family_button.dart';
 import 'package:informatik_projekt/widgets/join_family_button.dart';
 import 'package:informatik_projekt/screens/family/qr_scanner_screen.dart';
@@ -27,6 +31,17 @@ class SetupScreen extends StatelessWidget {
         ),
       );
     }
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    ApiService apiService = ApiService();
+    await apiService.logout();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginScreen()
+      ),
+    );
   }
 
   @override
@@ -64,6 +79,21 @@ class SetupScreen extends StatelessWidget {
                   );
                 },
               ),
+              const SizedBox(height: 40),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Log out',
+                      style: TextStyle(color: Colors.blue),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          _logout(context);
+                        },
+                    ),
+                  ],
+                ),
+              )
             ],
           ),
         ),
