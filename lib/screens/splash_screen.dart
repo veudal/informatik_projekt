@@ -12,9 +12,7 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController controller;
+class _SplashScreenState extends State<SplashScreen> {
   final ApiService _apiService = ApiService();
   Timer? _retryTimer;
   DateTime? _firstErrorTime;
@@ -23,18 +21,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-
-    controller.forward();
-    controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed && mounted) {
-        _determineDestination();
-      }
-    });
+    _determineDestination();
   }
 
   Future<void> _determineDestination() async {
@@ -120,7 +107,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    controller.dispose();
     _retryTimer?.cancel();
     super.dispose();
   }
