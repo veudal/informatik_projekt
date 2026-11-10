@@ -51,7 +51,7 @@ class _CreateFamilyScreenState extends State<CreateFamilyScreen> {
 
     try {
       final apiService = ApiService();
-      await apiService.createFamily(_nameController.text);
+      await apiService.createFamily(_nameController.text, _descriptionController.text);
 
       if (!mounted) return;
 
