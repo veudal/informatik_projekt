@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-
 import 'dart:io';
 
 import 'package:informatik_projekt/services/structs/join_request.dart';
