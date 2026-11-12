@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
 import 'package:informatik_projekt/screens/family/setup_screen.dart';
@@ -40,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // 2. Check if user belongs to any family
     try {
       final families = await _apiService.getFamily();
-      
+
       // Reset error tracking on success
       _firstErrorTime = null;
       _snackbarShowing = false;
@@ -57,7 +58,14 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       }
+    } on SessionExpiredException {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
     } catch (e) {
+      print('splash error: $e');
       // Server or Network Error
       _handleNetworkError();
     }
@@ -70,7 +78,8 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     // Show snackbar after 5 seconds of continuous errors
-    if (now.difference(_firstErrorTime!) >= const Duration(seconds: 5) && !_snackbarShowing) {
+    if (now.difference(_firstErrorTime!) >= const Duration(seconds: 5) &&
+        !_snackbarShowing) {
       _showErrorSnackbar();
     }
 
@@ -113,11 +122,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
-
