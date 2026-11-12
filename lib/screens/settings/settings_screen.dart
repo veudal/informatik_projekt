@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
+import 'package:informatik_projekt/screens/settings/family/invitation_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -84,6 +85,16 @@ class SettingsScreen extends StatelessWidget {
             title: 'Benachrichtigungen',
             subtitle: 'Alarme steuern',
             onTap: () {},
+          ),
+          const Divider(),
+          _buildSectionTitle('Familie'),
+          _buildSettingsTile(
+            icon: Icons.person_add_alt, 
+            title: 'Familienmitglied einladen', 
+            subtitle: '???', 
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const InvitationScreen()));
+            }
           ),
           const Divider(),
           _buildSectionTitle('Anwendung'),

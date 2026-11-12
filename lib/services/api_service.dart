@@ -1,5 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:informatik_projekt/services/structs/join_request.dart';
+import 'package:uuid/uuid.dart';
+
 import '../models/transaction.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -189,7 +195,10 @@ class ApiService {
     }
   }
 
-  Future<List<Transaction>> getTransactionsByWallet(String walletId, String token) async {
+  Future<List<Transaction>> getTransactionsByWallet(
+    String walletId,
+    String token,
+  ) async {
     final response = await http.get(
       Uri.parse('$baseUrl/transactions/wallet/$walletId'),
       headers: {'Authorization': 'Bearer $token'},
@@ -203,26 +212,90 @@ class ApiService {
     }
   }
 
-  Future<void> createTransaction(String walletId, String familyWalletId, int amountCents, String kind, String note, String token) async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/transactions'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode({
-      'walletId': walletId,
-      'familyWalletId': familyWalletId,
-      'amountCents': amountCents,
-      'kind': kind,
-      'note': note,
-    }),
-  );
+  Future<void> createTransaction(
+    String walletId,
+    String familyWalletId,
+    int amountCents,
+    String kind,
+    String note,
+    String token,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/transactions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'walletId': walletId,
+        'familyWalletId': familyWalletId,
+        'amountCents': amountCents,
+        'kind': kind,
+        'note': note,
+      }),
+    );
 
-  if (response.statusCode != 200 && response.statusCode != 201) {
-    throw Exception('Fehler beim Erstellen der Transaktion (Status: ${response.statusCode})');
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Fehler beim Erstellen der Transaktion (Status: ${response.statusCode})',
+      );
+    }
   }
- }
+
+  Future<String> requestFamilyInviteCode() async {
+    return storage
+        .read(key: AppConfig.storageTokenKey)
+        .then((token) {
+          return http.get(
+            Uri.parse('$baseUrl/invite/create-code'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+        })
+        .then((response) {
+          if (response.statusCode != 200 || response.statusCode != 201) {
+            throw Exception('HTTP Error ${response.statusCode}');
+          }
+
+          return jsonDecode(response.body)['code'];
+        });
+  }
+
+  Future<List<JoinRequest>> pollJoinRequests() async {
+    return storage
+        .read(key: AppConfig.storageTokenKey)
+        .then((token) {
+          return http.get(
+            Uri.parse('$baseUrl/invite/poll-requests'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+        })
+        .then((response) {
+          if (response.statusCode != 200 || response.statusCode != 201) {
+            throw Exception('HTTP Error ${response.statusCode}');
+          }
+
+          return jsonDecode(response.body)['requests'].map((entry) {
+            return JoinRequest(
+              name: entry['name'],
+              requesterId: UuidValue.fromString(entry['requesterId']),
+            );
+          });
+        });
+  }
+
+  Future<bool> sendJoinRequest(String code) {
+    return Future.error('Not implemented');
+  }
+
+  Future<void> pollJoinRequestStatus() {
+    return Future.error('Not implemented');
+  }
 }
 
 /// Thrown when joining a family via a scanned invite code fails.
