@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// A prominent, card-style button for the main page that opens the QR
-/// scanner to join a family.
-class JoinFamilyButton extends StatelessWidget {
-  const JoinFamilyButton({super.key, required this.onPressed});
 
-  /// Called when the user taps the button.
+
+class FamilySetupButton extends StatelessWidget {
+  final String title;
+  final String description;
+  final IconData icon;
   final VoidCallback onPressed;
+
+  const FamilySetupButton({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +41,7 @@ class JoinFamilyButton extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
-                    Icons.qr_code_scanner,
+                    Icons.add_sharp,
                     color: colorScheme.onPrimary,
                     size: 26,
                   ),
@@ -44,7 +52,7 @@ class JoinFamilyButton extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'QR-Code scannen, um beizutreten',
+                        title,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
@@ -52,7 +60,7 @@ class JoinFamilyButton extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Richte die Kamera auf einen Einladungscode',
+                        description,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onPrimary.withValues(alpha: 0.85),
                         ),
@@ -60,10 +68,7 @@ class JoinFamilyButton extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: colorScheme.onPrimary.withValues(alpha: 0.7),
-                ),
+                Icon(icon, color: colorScheme.onPrimary.withValues(alpha: 0.7)),
               ],
             ),
           ),

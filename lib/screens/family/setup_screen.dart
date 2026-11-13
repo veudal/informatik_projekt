@@ -5,9 +5,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
-import 'package:informatik_projekt/widgets/create_family_button.dart';
-import 'package:informatik_projekt/widgets/join_family_button.dart';
+import 'package:informatik_projekt/widgets/family_setup_button.dart';
 import 'package:informatik_projekt/screens/family/qr_scanner_screen.dart';
+import 'package:informatik_projekt/widgets/logout_button.dart';
 
 import 'create_family_screen.dart';
 
@@ -32,21 +32,10 @@ class SetupScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _logout(BuildContext context) async {
-    ApiService apiService = ApiService();
-    await apiService.logout();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LoginScreen()
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Get Started')),
+      appBar: AppBar(title: const Text('Starte dein Familienleben')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -62,37 +51,32 @@ class SetupScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'To get started, you need to be part of a family. You can create a new one or join an existing one.',
+                'Um anzufangen musst du Teil einer Familie sein. Du kannst eine Familie erstellen oder einer bereits bestehenden beitreten.',
                 style: TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
-              JoinFamilyButton(onPressed: () => _openQrScanner(context)),
+              FamilySetupButton(
+                title: 'QR-Code scannen, um beizutreten',
+                description: 'Richte die Kamera auf einen Einladungscode',
+                icon: Icons.chevron_right_rounded,
+                onPressed: () => _openQrScanner(context)
+              ),
               const SizedBox(height: 16),
-              CreateFamilyButton(
+              FamilySetupButton(
+                title: 'Neue Familie erstellen',
+                description: 'Erstelle deine eigene Familie',
+                icon: Icons.chevron_right_rounded,
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const CreateFamilyScreen(),
                     ),
                   );
-                },
+                }
               ),
               const SizedBox(height: 40),
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Log out',
-                      style: TextStyle(color: Colors.blue),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          _logout(context);
-                        },
-                    ),
-                  ],
-                ),
-              )
+              const LogoutButton()
             ],
           ),
         ),

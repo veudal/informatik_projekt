@@ -1,20 +1,13 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-/// Accent color for the scanner overlay
 const Color _accentColor = Color(0xFFA5B4FC);
-
-/// Success color shown when a valid family code was detected.
 const Color _successColor = Color(0xFF4ADE80);
 
-/// Full-screen QR scanner that only accepts family invite codes.
-///
-/// A valid family QR code stores nothing but the family's UUID. When such a
-/// code is scanned, this screen pops and returns the UUID to the caller.
-/// Popping without a result means the user closed the scanner.
 class QrScannerScreen extends StatefulWidget {
   const QrScannerScreen({super.key});
 
@@ -24,24 +17,16 @@ class QrScannerScreen extends StatefulWidget {
 
 class _QrScannerScreenState extends State<QrScannerScreen>
     with SingleTickerProviderStateMixin {
-  /// A QR code is only accepted when it stores exactly a family UUID.
-  static final RegExp _familyCodePattern = RegExp(
-    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  static final RegExp _codePattern = RegExp(
+    r'^[A-Za-z0-9]{6}$',
   );
-
   final MobileScannerController _controller = MobileScannerController(
     autoStart: false,
     formats: const <BarcodeFormat>[BarcodeFormat.qrCode],
     facing: CameraFacing.back,
   );
-
   StreamSubscription<BarcodeCapture>? _subscription;
-
-  late final AnimationController _scanLineController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  )..repeat(reverse: true);
-
+  late final AnimationController _scanLineController;
   Timer? _invalidCodeTimer;
   bool _hasResult = false;
   bool _isTorchOn = false;
@@ -51,8 +36,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   void initState() {
     super.initState();
-    _subscription = _controller.barcodes.listen(_handleBarcode);
+    _subscription = _controller.barcodes.listen(_onDetectBarcode);
     unawaited(_controller.start());
+
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    );
+    _scanLineController.repeat(reverse: true);
   }
 
   @override
@@ -65,18 +56,18 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     await _controller.dispose();
   }
 
-  /// Scan window: a centered square in the upper half of the screen.
-  Rect _scanWindowFor(Size size) {
-    final double side = size.width * 0.72;
+  /// Scan window: a centered square
+  Rect _getScanWindow(Size size) {
+    final double halfWidth = min(size.width, size.height) * 0.72;
 
     return Rect.fromCenter(
-      center: Offset(size.width / 2, size.height * 0.42),
-      width: side,
-      height: side,
+      center: Offset(size.width / 2, size.height / 2),
+      width: halfWidth,
+      height: halfWidth,
     );
   }
 
-  void _handleBarcode(BarcodeCapture capture) {
+  void _onDetectBarcode(BarcodeCapture capture) {
     if (_hasResult) {
       return;
     }
@@ -87,17 +78,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         continue;
       }
 
-      if (_familyCodePattern.hasMatch(rawValue)) {
-        unawaited(_onValidFamilyCode(rawValue));
+      if (_codePattern.hasMatch(rawValue)) {
+        unawaited(_onValidCode(rawValue));
+        break;
       } else {
-        _showInvalidCodeHint();
+        _onInvalidCode();
       }
-      return;
     }
   }
 
   /// Freezes the preview, shows success feedback and pops with the UUID.
-  Future<void> _onValidFamilyCode(String familyId) async {
+  Future<void> _onValidCode(String familyId) async {
     if (_hasResult) {
       return;
     }
@@ -112,21 +103,15 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     await _controller.stop();
 
-    if (!mounted) {
-      return;
-    }
-
     await Future<void>.delayed(const Duration(milliseconds: 900));
 
-    if (!mounted) {
-      return;
+    if (mounted) {
+      Navigator.pop(context, familyId);
     }
-
-    Navigator.of(context).pop(familyId);
   }
 
   /// Shows a short-lived hint that the scanned code was not a family code.
-  void _showInvalidCodeHint() {
+  void _onInvalidCode() {
     if (_hasResult) {
       return;
     }
@@ -137,23 +122,21 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         setState(() => _invalidCodeMessage = null);
       }
     });
-
-    if (_invalidCodeMessage == null) {
-      setState(() {
-        _invalidCodeMessage = 'This QR code is not a family invite code.';
-      });
-    }
+    
+    setState(() {
+      _invalidCodeMessage = 'Der QR code is kein Familien Einladungs code';
+    });
   }
 
   Future<void> _toggleTorch() async {
     try {
       await _controller.toggleTorch();
-      if (!mounted) {
-        return;
+
+      if (mounted) {
+        setState(() {
+          _isTorchOn = _controller.value.torchState == TorchState.on;
+        });
       }
-      setState(() {
-        _isTorchOn = _controller.value.torchState == TorchState.on;
-      });
     } on Exception {
       // The torch is not available on this device — nothing to do.
     }
@@ -163,13 +146,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   Widget build(BuildContext context) {
     final Size mediaSize = MediaQuery.sizeOf(context);
     final double bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final Rect scanWindow = _getScanWindow(mediaSize);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: MobileScanner(
         controller: _controller,
         fit: BoxFit.cover,
-        scanWindow: _scanWindowFor(mediaSize),
+        scanWindow: scanWindow,
         placeholderBuilder: (BuildContext context) => const ColoredBox(
           color: Colors.black,
           child: Center(
@@ -184,8 +168,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           );
         },
         overlayBuilder: (BuildContext context, BoxConstraints constraints) {
-          final Rect window = _scanWindowFor(constraints.biggest);
-
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -193,7 +175,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 animation: _scanLineController,
                 builder: (BuildContext context, Widget? child) => CustomPaint(
                   painter: _ScannerOverlayPainter(
-                    scanWindow: window,
+                    scanWindow: scanWindow,
                     scanLineProgress: _hasResult
                         ? null
                         : _scanLineController.value,
@@ -363,7 +345,7 @@ class _HintColumn extends StatelessWidget {
           const SizedBox(height: 12),
         ],
         Text(
-          'Align the family QR code inside the frame',
+          'Halten Sie den Familen QR code in den Rahmen',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.85),
