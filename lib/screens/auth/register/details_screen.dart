@@ -207,7 +207,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: isConfirmButtonEnabled() ? onPressConfirm : null,
+               onPressed: (isConfirmButtonEnabled() && !_isSubmitting) ? onPressConfirm : null,
                 child: const Text('Bestätigen'),
               ),
             ],
