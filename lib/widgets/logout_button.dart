@@ -72,7 +72,7 @@ class LogoutButton extends StatelessWidget {
           foregroundColor: Colors.red,
           side: const BorderSide(color: Colors.red),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),

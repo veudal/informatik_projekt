@@ -1,36 +1,12 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
-import 'package:informatik_projekt/services/api_service.dart';
+import 'package:informatik_projekt/screens/family/join_family_screen.dart';
 import 'package:informatik_projekt/widgets/family_setup_button.dart';
-import 'package:informatik_projekt/screens/family/qr_scanner_screen.dart';
 import 'package:informatik_projekt/widgets/logout_button.dart';
 
 import 'create_family_screen.dart';
 
 class SetupScreen extends StatelessWidget {
   const SetupScreen({super.key});
-
-  Future<void> _openQrScanner(BuildContext context) async {
-    if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
-      final String? familyId = await Navigator.of(context).push<String>(
-        MaterialPageRoute<String>(builder: (_) => const QrScannerScreen()),
-      );
-
-      if (familyId != null) {
-        // TODO: Implement joining logic
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Plattform is not supporting QR scanning.'),
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,26 +33,32 @@ class SetupScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               FamilySetupButton(
-                title: 'QR-Code scannen, um beizutreten',
-                description: 'Richte die Kamera auf einen Einladungscode',
-                icon: Icons.chevron_right_rounded,
-                onPressed: () => _openQrScanner(context)
+                title: 'Einer Familie beitreten',
+                description: 'Per Einladungscode in eine familie eintreten',
+                icon: Icons.group_add,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const JoinFamilyScreen()),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               FamilySetupButton(
                 title: 'Neue Familie erstellen',
                 description: 'Erstelle deine eigene Familie',
-                icon: Icons.chevron_right_rounded,
+                icon: Icons.add_sharp,
                 onPressed: () {
-                  Navigator.of(context).push(
+                  Navigator.push(
+                    context,
                     MaterialPageRoute(
                       builder: (_) => const CreateFamilyScreen(),
                     ),
                   );
-                }
+                },
               ),
               const SizedBox(height: 40),
-              const LogoutButton()
+              const LogoutButton(),
             ],
           ),
         ),

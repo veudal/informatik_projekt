@@ -102,10 +102,6 @@ class _InvitationScreenState extends State<InvitationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.maybePop(context),
-          icon: const Icon(Icons.arrow_back),
-        ),
         title: const Text('Familienmitglied einladen'),
       ),
       body: FutureBuilder(

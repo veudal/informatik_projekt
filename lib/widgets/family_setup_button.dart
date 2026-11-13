@@ -41,7 +41,7 @@ class FamilySetupButton extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
-                    Icons.add_sharp,
+                    icon,
                     color: colorScheme.onPrimary,
                     size: 26,
                   ),
@@ -68,7 +68,7 @@ class FamilySetupButton extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(icon, color: colorScheme.onPrimary.withValues(alpha: 0.7)),
+                Icon(Icons.chevron_right_rounded, color: colorScheme.onPrimary.withValues(alpha: 0.7)),
               ],
             ),
           ),
