@@ -169,7 +169,7 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
                   ],
                   pinController: _controller,
                   onChanged: onInputChanged,
-                  enabled: _showLoadingButton,
+                  enabled: !_showLoadingButton,
                 ),
                 IconButton.filled(
                   onPressed: () => _openQrScanner(context),
