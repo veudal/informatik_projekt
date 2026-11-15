@@ -159,7 +159,9 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Einzelkonto: Überweisung an Familienkonto oder an andere Einzelkonten
+  // Überweisung an Einzelkonten der Familie:
+  // - Einzelkonto -> andere Einzelkonten (nicht an das Familienkonto)
+  // - Familienkonto -> Einzelkonten
   // ---------------------------------------------------------------------------
   void _showTransferDialog() async {
     final amountController = TextEditingController();
@@ -168,13 +170,11 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
     List<WalletAccount> availableWallets = [];
     try {
       if (widget.familyId != null) {
-        final results = await Future.wait([
-          _apiService.getFamilyWalletsForFamily(widget.familyId!),
-          _apiService.getWalletsForFamily(widget.familyId!),
-        ]);
-        availableWallets = [...results[0], ...results[1]];
-        // Das eigene Konto entfernen, damit man nicht an sich selbst überweist
-        availableWallets.removeWhere((w) => w.id == widget.walletId);
+        final wallets = await _apiService.getWalletsForFamily(widget.familyId!);
+        // Nur Einzelkonten; das eigene Konto entfernen
+        availableWallets = wallets
+            .where((w) => !w.isFamily && w.id != widget.walletId)
+            .toList();
       }
     } catch (_) {}
 
@@ -279,12 +279,12 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
 
                           setStateDialog(() => isSubmitting = true);
                           try {
-                            if (target.isFamily) {
-                              // Einzelkonto -> Familienkonto
+                            if (widget.isFamilyWallet) {
+                              // Familienkonto -> Einzelkonto (Gutschrift beim Einzelkonto)
                               await _apiService.createTransaction(
-                                widget.walletId,
                                 target.id,
-                                -amountCents,
+                                widget.walletId,
+                                amountCents,
                                 'transfer',
                                 note,
                               );
@@ -473,10 +473,26 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
 
   Widget? _buildFab() {
     if (widget.isFamilyWallet) {
-      return FloatingActionButton.extended(
-        onPressed: _showExternalTransferDialog,
-        icon: const Icon(Icons.account_balance),
-        label: const Text('Ein-/Auszahlen'),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (widget.familyId != null) ...[
+            FloatingActionButton.extended(
+              heroTag: 'familyTransfer',
+              onPressed: _showTransferDialog,
+              icon: const Icon(Icons.send),
+              label: const Text('Überweisen'),
+            ),
+            const SizedBox(height: 12),
+          ],
+          FloatingActionButton.extended(
+            heroTag: 'externalTransfer',
+            onPressed: _showExternalTransferDialog,
+            icon: const Icon(Icons.account_balance),
+            label: const Text('Ein-/Auszahlen'),
+          ),
+        ],
       );
     }
     if (widget.familyId == null) return null;
