@@ -3,7 +3,6 @@ import 'package:informatik_projekt/screens/settings/settings_screen.dart';
 
 import 'home/home_screen.dart';
 import 'notifications/notifications_screen.dart';
-import 'profile/profile_screen.dart';
 import 'savings/savings_screen.dart';
 import 'tasks/tasks_screen.dart';
 

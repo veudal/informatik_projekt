@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:informatik_projekt/screens/settings/settings_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 import 'package:informatik_projekt/services/structs/join_request.dart';
 import 'package:informatik_projekt/widgets/colored_button.dart';
@@ -18,7 +17,7 @@ class InvitationScreen extends StatefulWidget {
 
 class _InvitationScreenState extends State<InvitationScreen> {
   final ApiService _apiService = ApiService();
-  late final Future<String> _invitationCode;
+  late Future<String> _invitationCode;
   bool _isPolling = false;
 
   @override
@@ -86,7 +85,11 @@ class _InvitationScreenState extends State<InvitationScreen> {
               children: [
                 Align(
                   alignment: AlignmentGeometry.centerRight,
-                  child: CloseButton(),
+                  child: CloseButton(
+                    onPressed: () {
+                      _onDecide(invitationId, false, displayName);
+                    },
+                  ),
                 ),
                 SizedBox(height: 16),
                 Text.rich(
@@ -136,7 +139,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$displayName wurde in die Familie aufgenommen.'),
+            content: Text(accept ? '$displayName wurde in die Familie aufgenommen.' : '$displayName wurde abgelehnt.'),
           ),
         );
       }
