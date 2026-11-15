@@ -40,7 +40,7 @@ class SettingsScreen extends StatelessWidget {
           _buildSettingsTile(
             icon: Icons.person_add_alt, 
             title: 'Familienmitglied einladen', 
-            subtitle: '???', 
+            subtitle: 'Erweitere deine Armee', 
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const InvitationScreen()));
             }

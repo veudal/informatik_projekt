@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:informatik_projekt/screens/settings/settings_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
 import 'package:informatik_projekt/services/structs/join_request.dart';
@@ -158,7 +159,8 @@ class _InvitationScreenState extends State<InvitationScreen> {
         MaterialPageRoute(builder: (_) => SettingsScreen()),
       );
 
-      if (mounted) { // check if for some reason this screen was popped accidentally
+      if (mounted) {
+        // check if for some reason this screen was popped accidentally
         setState(() {
           _invitationCode = _apiService.createInvitation();
         });
@@ -191,7 +193,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                spacing: 32,
+                spacing: 24,
                 children: [
                   QrImageView(
                     data: id,
@@ -202,12 +204,36 @@ class _InvitationScreenState extends State<InvitationScreen> {
                       'Der QR code konnte nicht generiert werden :$error',
                     ),
                   ),
-                  Text(
-                    id,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24.0,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: 14,
+                    children: [
+                      SelectableText(
+                        id,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24.0,
+                        ),
+                      ),
+                      IconButton.filled(
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: id),
+                          );
+                          // copied successfully
+                        },
+                        icon: const Icon(Icons.content_copy),
+                        tooltip: 'In die Zwischenablage kopieren',
+                        style: IconButton.styleFrom(
+                          fixedSize: const Size(24, 24),
+                          padding: EdgeInsets.all(0),
+                          iconSize: 20,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const Text(
                     'Reiche den Einladungs code weiter an das Familienmitflied dass du einladen möchtest.',
