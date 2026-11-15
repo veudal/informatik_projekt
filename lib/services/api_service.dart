@@ -1,90 +1,75 @@
 import 'dart:convert';
-
 import 'dart:io';
-
-import 'package:informatik_projekt/services/structs/join_request.dart';
-import 'package:uuid/uuid.dart';
-
-import '../models/transaction.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
-import '../models/family.dart';
 import '../config/app_config.dart';
+import '../models/calendar_entry.dart';
+import '../models/family.dart';
+import '../models/transaction.dart';
+import '../models/wallet.dart';
+import 'structs/join_request.dart';
 
 class ApiService {
-  final storage = FlutterSecureStorage();
+  final storage = const FlutterSecureStorage();
   static const String baseUrl = AppConfig.apiBaseUrl;
 
-  static const String _emailKey = 'auth_email';
-  static const String _passwordKey = 'auth_password';
-
-  /// Checks if a token exists in secure storage to determine if the user is logged in.
   Future<bool> isAuthenticated() async {
     final token = await storage.read(key: AppConfig.storageTokenKey);
-    return token != null;
+    return token != null && token.isNotEmpty;
   }
 
   Future<void> logout() async {
     await storage.delete(key: AppConfig.storageTokenKey);
-    await storage.delete(key: _emailKey);
-    await storage.delete(key: _passwordKey);
   }
 
   Future<bool> login(String email, String password) async {
-    final res = await http.post(
+    final response = await http.post(
       Uri.parse('${AppConfig.apiBaseUrl}/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
-    print('login: ${res.statusCode} ${res.body}');
-    if (res.statusCode != 200) return false;
+    if (response.statusCode != 200) return false;
+
+    final body = jsonDecode(response.body);
+    if (body is! Map<String, dynamic> ||
+        body['token'] is! String ||
+        (body['token'] as String).isEmpty) {
+      throw const FormatException('Login response does not contain a token');
+    }
+
     await storage.write(
       key: AppConfig.storageTokenKey,
-      value: jsonDecode(res.body)['token'],
+      value: body['token'] as String,
     );
-    // Keep credentials so we can silently re-authenticate when the token expires.
-    await storage.write(key: _emailKey, value: email);
-    await storage.write(key: _passwordKey, value: password);
     return true;
   }
 
-  /// Tries to get a new token using the stored credentials.
-  Future<bool> _reLogin() async {
-    final email = await storage.read(key: _emailKey);
-    final password = await storage.read(key: _passwordKey);
-    if (email == null || password == null) return false;
-    return login(email, password);
-  }
-
-  /// Runs [request] with the current token. On 401 or 403, re-logins once and retries.
-  /// If that fails too, logs out and throws [SessionExpiredException].
-  Future<http.Response> _send(
-    Future<http.Response> Function(String? token) request,
-  ) async {
-    var token = await storage.read(key: AppConfig.storageTokenKey);
-    var res = await request(token);
-
-    // Listen for both 401 (Unauthorized) and 403 (Forbidden due to expired/bad token)
-    if (res.statusCode != 401 && res.statusCode != 403) return res;
-
-    if (await _reLogin()) {
-      token = await storage.read(key: AppConfig.storageTokenKey);
-      res = await request(token);
-      if (res.statusCode != 401 && res.statusCode != 403) return res;
+  Future<Map<String, String>> _authorizationHeaders({
+    bool includeJsonContentType = false,
+  }) async {
+    final token = await storage.read(key: AppConfig.storageTokenKey);
+    if (token == null || token.isEmpty) {
+      throw Exception('Nicht angemeldet');
     }
 
-    throw Exception();
+    return {
+      'Authorization': 'Bearer $token',
+      if (includeJsonContentType) 'Content-Type': 'application/json',
+    };
   }
 
   Future<bool> isEmailRegistered(String email) async {
-    final res = await http.get(
-      Uri.parse('${AppConfig.apiBaseUrl}/auth/check-email?email=$email'),
+    final response = await http.get(
+      Uri.parse(
+        '${AppConfig.apiBaseUrl}/auth/check-email'
+        '?email=${Uri.encodeQueryComponent(email)}',
+      ),
       headers: {'Content-Type': 'application/json'},
     );
-    // Assuming 200 means registered, others mean not registered or error
-    return res.statusCode == 200;
+    return response.statusCode == 200;
   }
 
   Future<Map<String, dynamic>> register(
@@ -95,7 +80,7 @@ class ApiService {
     String displayName,
     DateTime birthDate,
   ) async {
-    final res = await http.post(
+    final response = await http.post(
       Uri.parse('${AppConfig.apiBaseUrl}/auth/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
@@ -110,34 +95,45 @@ class ApiService {
     );
 
     return {
-      'success': res.statusCode == 200 || res.statusCode == 201,
-      'statusCode': res.statusCode,
-      'body': res.body,
+      'success': response.statusCode == 200 || response.statusCode == 201,
+      'statusCode': response.statusCode,
+      'body': response.body,
     };
   }
 
-  Future<http.Response> authGet(String path) {
-    return _send(
-      (token) => http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}$path'),
-        headers: {'Authorization': 'Bearer $token'},
-      ),
+  Future<http.Response> authGet(String path) async {
+    return http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}$path'),
+      headers: await _authorizationHeaders(),
     );
   }
 
-  /// Returns the user's family, or null if the user has none.
+  Future<List<CalendarEntry>> getCalendarEntries(String familyId) async {
+    final response = await authGet('/users/family/$familyId');
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Kalender konnte nicht geladen werden (Status: ${response.statusCode})',
+      );
+    }
+
+    final members = jsonDecode(response.body) as List<dynamic>;
+    return members
+        .where((member) => member['birthDate'] != null)
+        .map((member) => CalendarEntry.fromMember(member))
+        .toList();
+  }
+
   Future<Family?> getFamily() async {
-    final response = await _send(
-      (token) => http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/family'),
-        headers: {'Authorization': 'Bearer $token'},
-      ),
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/family'),
+      headers: await _authorizationHeaders(),
     );
 
-    print('getFamily: ${response.statusCode} ${response.body}');
-    // No family is a valid state
     if (response.statusCode == 204 || response.statusCode == 404) return null;
-
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
     if (response.statusCode != 200) {
       throw Exception('Failed to load family (Status: ${response.statusCode})');
     }
@@ -151,21 +147,98 @@ class ApiService {
       return decoded.isEmpty ? null : Family.fromJson(decoded.first);
     }
     if (decoded is Map<String, dynamic>) return Family.fromJson(decoded);
-
-    throw Exception('Unexpected data format from server');
+    throw const FormatException('Unexpected family data from server');
   }
 
-  /// Joins the family with the given [familyId].
-  ///
-  /// Expects the backend to provide: `POST /api/families/{familyId}/join`.
-  Future<void> joinFamily(String familyId) async {
-    final Uri uri = Uri.parse(
-      '${AppConfig.apiBaseUrl}/families/$familyId/join',
+  Future<List<WalletAccount>> getWalletsForFamily(String familyId) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/wallets/family/$familyId'),
+      headers: await _authorizationHeaders(),
     );
 
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to load wallets (Status: ${response.statusCode})',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw const FormatException('Unexpected wallet data from server');
+    }
+    return decoded.map((wallet) {
+      if (wallet is! Map<String, dynamic>) {
+        throw const FormatException('Unexpected wallet data from server');
+      }
+      return WalletAccount.fromJson(wallet);
+    }).toList();
+  }
+
+  Future<List<WalletAccount>> getFamilyWalletsForFamily(String familyId) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiBaseUrl}/family-wallets/family/$familyId'),
+      headers: await _authorizationHeaders(),
+    );
+
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to load family wallets (Status: ${response.statusCode})',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw const FormatException('Unexpected family wallet data from server');
+    }
+    return decoded.map((wallet) {
+      if (wallet is! Map<String, dynamic>) {
+        throw const FormatException(
+          'Unexpected family wallet data from server',
+        );
+      }
+      return WalletAccount.fromFamilyWalletJson(wallet);
+    }).toList();
+  }
+
+  Future<void> createFamilyWallet(String familyId, String name) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/family-wallets'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({
+        'familyId': familyId,
+        'kind': 'family',
+        'name': name,
+        'currency': 'EUR',
+        'balanceCents': 0,
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
+
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Failed to create family wallet (Status: ${response.statusCode})',
+      );
+    }
+  }
+
+  Future<void> joinFamily(String familyId) async {
+    final uri = Uri.parse('${AppConfig.apiBaseUrl}/families/$familyId/join');
     try {
-      final http.Response response = await _send(
-        (token) => http.post(uri, headers: {'Authorization': 'Bearer $token'}),
+      final response = await http.post(
+        uri,
+        headers: await _authorizationHeaders(),
       );
 
       switch (response.statusCode) {
@@ -182,95 +255,102 @@ class ApiService {
           throw FamilyJoinException('You are already a member of this family.');
         default:
           throw FamilyJoinException(
-            'Diese Familie konnte nicht beigetreten werden (Status: ${response.statusCode}).',
+            'Diese Familie konnte nicht beigetreten werden '
+            '(Status: ${response.statusCode}).',
           );
       }
     } on FamilyJoinException {
       rethrow;
-    } on SessionExpiredException {
-      rethrow;
-    } catch (e) {
-      throw FamilyJoinException('Network error while joining the family: $e');
+    } catch (error) {
+      throw FamilyJoinException(
+        'Network error while joining the family: $error',
+      );
     }
   }
 
   Future<Family> createFamily(String name, String description) async {
-    final Uri uri = Uri.parse('${AppConfig.apiBaseUrl}/families');
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/families'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({'name': name, 'description': description}),
+    );
 
-    try {
-      final http.Response response = await _send(
-        (token) => http.post(
-          uri,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({'name': name, 'description': description}),
-        ),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return Family.fromJson(jsonDecode(response.body));
-      } else {
-        // Try to parse error message if available, otherwise use status code
-        String errorMessage = 'Failed to create family';
-        try {
-          final errorData = jsonDecode(response.body);
-          errorMessage = errorData['message'] ?? errorMessage;
-        } catch (_) {}
-        throw Exception('$errorMessage (Status: ${response.statusCode})');
-      }
-    } on SessionExpiredException {
-      rethrow;
-    } catch (e) {
-      throw Exception('Network error while creating family: $e');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Family.fromJson(jsonDecode(response.body));
     }
+
+    var errorMessage = 'Failed to create family';
+    if (response.body.isNotEmpty) {
+      final errorData = jsonDecode(response.body);
+      if (errorData is Map<String, dynamic> && errorData['message'] is String) {
+        errorMessage = errorData['message'] as String;
+      }
+    }
+    throw Exception('$errorMessage (Status: ${response.statusCode})');
   }
 
-  Future<int> getWalletBalance(String walletId, String token) async {
+  Future<int> getWalletBalance(String walletId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/wallets/balance/$walletId'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: await _authorizationHeaders(),
     );
 
     if (response.statusCode == 200) {
-      return int.parse(response.body);
-    } else {
-      throw Exception('Fehler beim Laden des Kontostands');
+      return int.parse(response.body.trim());
     }
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    throw Exception('Fehler beim Laden des Kontostands');
   }
 
-  Future<List<Transaction>> getTransactionsByWallet(
-    String walletId,
-    String token,
-  ) async {
+  Future<List<Transaction>> getTransactionsByWallet(String walletId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/transactions/wallet/$walletId'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: await _authorizationHeaders(),
     );
 
     if (response.statusCode == 200) {
-      Iterable data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as List;
       return data.map((json) => Transaction.fromJson(json)).toList();
+    }
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    throw Exception('Fehler beim Laden der Transaktionen');
+  }
+  
+  Future<List<Transaction>> getTransactionsByFamilyWallet(String familyWalletId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/transactions/family-wallet/$familyWalletId'),
+      // HIER IST DER FIX: Wir nutzen die gleiche Methode für die Header wie überall sonst auch!
+      headers: await _authorizationHeaders(), 
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Transaction.fromJson(json)).toList();
+    } else if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
     } else {
-      throw Exception('Fehler beim Laden der Transaktionen');
+      // Mit Statuscode, damit wir beim nächsten Mal sofort wissen, was das Backend sagt
+      throw Exception('Fehler beim Laden der Familienkonto-Transaktionen (Status: ${response.statusCode})');
     }
   }
-
+  
   Future<void> createTransaction(
     String walletId,
     String familyWalletId,
     int amountCents,
     String kind,
     String note,
-    String token,
   ) async {
     final response = await http.post(
       Uri.parse('$baseUrl/transactions'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: await _authorizationHeaders(includeJsonContentType: true),
       body: jsonEncode({
         'walletId': walletId,
         'familyWalletId': familyWalletId,
@@ -280,58 +360,197 @@ class ApiService {
       }),
     );
 
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
-        'Fehler beim Erstellen der Transaktion (Status: ${response.statusCode})',
+        'Fehler beim Erstellen der Transaktion '
+        '(Status: ${response.statusCode})',
       );
     }
   }
 
-  Future<String> requestFamilyInviteCode() async {
-    return storage
-        .read(key: AppConfig.storageTokenKey)
-        .then((token) {
-          return http.get(
-            Uri.parse('$baseUrl/invite/create-code'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          );
-        })
-        .then((response) {
-          if (response.statusCode != 200 || response.statusCode != 201) {
-            throw Exception('HTTP Error ${response.statusCode}');
-          }
+  /// Liefert User-ID -> Name (Vorname, sonst Anzeigename) aller Familienmitglieder.
+  Future<Map<String, String>> getFamilyMemberNames(String familyId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/family/$familyId'),
+      headers: await _authorizationHeaders(),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Fehler beim Laden der Familienmitglieder (Status: ${response.statusCode})',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    final names = <String, String>{};
+    if (decoded is List) {
+      for (final user in decoded) {
+        if (user is! Map<String, dynamic>) continue;
+        final id = user['id']?.toString();
+        if (id == null) continue;
+        final firstName = user['firstName']?.toString().trim() ?? '';
+        final displayName = user['displayName']?.toString().trim() ?? '';
+        names[id] = firstName.isNotEmpty ? firstName : displayName;
+      }
+    }
+    return names;
+  }
 
-          return jsonDecode(response.body)['code'];
-        });
+  /// Überweisung zwischen zwei Einzelkonten innerhalb der Familie.
+  Future<void> createMemberTransfer(
+    String fromWalletId,
+    String toWalletId,
+    int amountCents,
+    String note,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/transactions/member-transfer'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({
+        'fromWalletId': fromWalletId,
+        'toWalletId': toWalletId,
+        'amountCents': amountCents,
+        'note': note,
+      }),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Fehler bei der Überweisung (Status: ${response.statusCode})',
+      );
+    }
+  }
+
+  /// Simulierte Ein- ([isDeposit] = true) oder Auszahlung zwischen Familienkonto und externer Bank.
+  Future<void> createExternalTransfer(
+    String familyWalletId, {
+    required bool isDeposit,
+    required int amountCents,
+    required String bankName,
+    String? note,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/family-wallets/$familyWalletId/external-transfer'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({
+        'direction': isDeposit ? 'deposit' : 'withdrawal',
+        'amountCents': amountCents,
+        'bankName': bankName,
+        'note': note,
+      }),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode == 400 && !isDeposit) {
+      throw Exception('Nicht genügend Guthaben auf dem Familienkonto');
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Fehler bei der ${isDeposit ? 'Einzahlung' : 'Auszahlung'} '
+        '(Status: ${response.statusCode})',
+      );
+    }
+  }
+
+  /// Externe Bankbuchungen des Familienkontos. amountCents ist aus Sicht
+  /// des Familienkontos vorzeichenbehaftet (+ Einzahlung, - Auszahlung).
+  Future<List<Transaction>> getExternalTransfers(String familyWalletId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/external-transfers/family-wallet/$familyWalletId'),
+      headers: await _authorizationHeaders(),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Fehler beim Laden der Bankbuchungen (Status: ${response.statusCode})',
+      );
+    }
+    final data = jsonDecode(response.body) as List;
+    return data.map((raw) {
+      final json = raw as Map<String, dynamic>;
+      final amount = (json['amountCents'] ?? json['amount_cents'] ?? 0) as num;
+      final bank = json['bankName']?.toString() ?? 'Externe Bank';
+      final note = json['note']?.toString() ?? '';
+      final isDeposit = amount >= 0;
+      return Transaction(
+        id: json['id']?.toString() ?? '',
+        amountCents: amount.toInt(),
+        kind: isDeposit ? 'external_deposit' : 'external_withdrawal',
+        note: '${isDeposit ? 'Von' : 'An'} $bank${note.isEmpty ? '' : ' · $note'}',
+        createdAt: DateTime.parse(
+          json['createdAt'] ?? DateTime.now().toIso8601String(),
+        ),
+      );
+    }).toList();
+  }
+
+  Future<String> requestFamilyInviteCode() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/invite/create-code'),
+        headers: await _authorizationHeaders(includeJsonContentType: true),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('HTTP Error ${response.statusCode}');
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final code = body['code']?.toString();
+      if (code == null || code.isEmpty) {
+        throw const FormatException('Invite code missing in response');
+      }
+      return code;
+    } on SocketException {
+      throw Exception('No internet connection');
+    } on http.ClientException {
+      throw Exception('Network error occurred');
+    }
   }
 
   Future<List<JoinRequest>> pollJoinRequests() async {
-    return storage
-        .read(key: AppConfig.storageTokenKey)
-        .then((token) {
-          return http.get(
-            Uri.parse('$baseUrl/invite/poll-requests'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          );
-        })
-        .then((response) {
-          if (response.statusCode != 200 || response.statusCode != 201) {
-            throw Exception('HTTP Error ${response.statusCode}');
-          }
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/invite/poll-requests'),
+        headers: await _authorizationHeaders(includeJsonContentType: true),
+      );
 
-          return jsonDecode(response.body)['requests'].map((entry) {
-            return JoinRequest(
-              name: entry['name'],
-              requesterId: UuidValue.fromString(entry['requesterId']),
-            );
-          });
-        });
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('HTTP Error ${response.statusCode}');
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final requests = body['requests'] as List<dynamic>? ?? const [];
+      return requests
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (entry) => JoinRequest(
+              name: entry['name']?.toString() ?? '',
+              requesterId: UuidValue.fromString(
+                entry['requesterId']?.toString() ?? '',
+              ),
+            ),
+          )
+          .toList();
+    } on SocketException {
+      throw Exception('No internet connection');
+    } on http.ClientException {
+      throw Exception('Network error occurred');
+    }
   }
 
   Future<bool> sendJoinRequest(String code) {
@@ -343,7 +562,6 @@ class ApiService {
   }
 }
 
-/// Thrown when joining a family via a scanned invite code fails.
 class FamilyJoinException implements Exception {
   FamilyJoinException(this.message);
 
@@ -353,8 +571,6 @@ class FamilyJoinException implements Exception {
   String toString() => message;
 }
 
-/// Thrown when the token expired and silent re-login failed.
-/// The user has been logged out; the UI should navigate to the login screen.
 class SessionExpiredException implements Exception {
   @override
   String toString() => 'Session expired';
