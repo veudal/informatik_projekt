@@ -72,8 +72,7 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
       );
       if (isRegistered) {
         setState(() {
-          _emailError =
-              'Diese E-Mail ist bereits registriert.';
+          _emailError = 'Diese E-Mail ist bereits registriert.';
           _isSubmitting = false;
         });
         if (!mounted) return;

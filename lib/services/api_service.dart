@@ -1,13 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
 import '../config/app_config.dart';
 import '../models/calendar_entry.dart';
 import '../models/family.dart';
 import '../models/transaction.dart';
 import '../models/wallet.dart';
+import 'structs/join_request.dart';
 
 class ApiService {
   final storage = const FlutterSecureStorage();
@@ -72,6 +75,8 @@ class ApiService {
   Future<Map<String, dynamic>> register(
     String email,
     String password,
+    String firstName,
+    String lastName,
     String displayName,
     DateTime birthDate,
   ) async {
@@ -81,6 +86,8 @@ class ApiService {
       body: jsonEncode({
         'email': email,
         'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
         'displayName': displayName,
         'birthDate': birthDate.toIso8601String(),
         'role': 'admin',
@@ -125,7 +132,7 @@ class ApiService {
     if (response.statusCode == 204 || response.statusCode == 404) return null;
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200) {
       throw Exception('Failed to load family (Status: ${response.statusCode})');
@@ -151,7 +158,7 @@ class ApiService {
 
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200) {
       throw Exception(
@@ -179,7 +186,7 @@ class ApiService {
 
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200) {
       throw Exception(
@@ -217,7 +224,7 @@ class ApiService {
 
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -261,11 +268,11 @@ class ApiService {
     }
   }
 
-  Future<Family> createFamily(String name) async {
+  Future<Family> createFamily(String name, String description) async {
     final response = await http.post(
       Uri.parse('${AppConfig.apiBaseUrl}/families'),
-      headers: await _authorizationHeaders(),
-      body: {'name': name},
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({'name': name, 'description': description}),
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -293,7 +300,7 @@ class ApiService {
     }
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     throw Exception('Fehler beim Laden des Kontostands');
   }
@@ -310,7 +317,7 @@ class ApiService {
     }
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     throw Exception('Fehler beim Laden der Transaktionen');
   }
@@ -327,7 +334,7 @@ class ApiService {
       return data.map((json) => Transaction.fromJson(json)).toList();
     } else if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     } else {
       // Mit Statuscode, damit wir beim nächsten Mal sofort wissen, was das Backend sagt
       throw Exception('Fehler beim Laden der Familienkonto-Transaktionen (Status: ${response.statusCode})');
@@ -355,7 +362,7 @@ class ApiService {
 
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -373,7 +380,7 @@ class ApiService {
     );
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200) {
       throw Exception(
@@ -414,7 +421,7 @@ class ApiService {
     );
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -443,7 +450,7 @@ class ApiService {
     );
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode == 400 && !isDeposit) {
       throw Exception('Nicht genügend Guthaben auf dem Familienkonto');
@@ -465,7 +472,7 @@ class ApiService {
     );
     if (response.statusCode == 401) {
       await logout();
-      throw Exception('Session expired');
+      throw SessionExpiredException();
     }
     if (response.statusCode != 200) {
       throw Exception(
@@ -490,6 +497,69 @@ class ApiService {
       );
     }).toList();
   }
+
+  Future<String> requestFamilyInviteCode() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/invite/create-code'),
+        headers: await _authorizationHeaders(includeJsonContentType: true),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('HTTP Error ${response.statusCode}');
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final code = body['code']?.toString();
+      if (code == null || code.isEmpty) {
+        throw const FormatException('Invite code missing in response');
+      }
+      return code;
+    } on SocketException {
+      throw Exception('No internet connection');
+    } on http.ClientException {
+      throw Exception('Network error occurred');
+    }
+  }
+
+  Future<List<JoinRequest>> pollJoinRequests() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/invite/poll-requests'),
+        headers: await _authorizationHeaders(includeJsonContentType: true),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('HTTP Error ${response.statusCode}');
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final requests = body['requests'] as List<dynamic>? ?? const [];
+      return requests
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (entry) => JoinRequest(
+              name: entry['name']?.toString() ?? '',
+              requesterId: UuidValue.fromString(
+                entry['requesterId']?.toString() ?? '',
+              ),
+            ),
+          )
+          .toList();
+    } on SocketException {
+      throw Exception('No internet connection');
+    } on http.ClientException {
+      throw Exception('Network error occurred');
+    }
+  }
+
+  Future<bool> sendJoinRequest(String code) {
+    return Future.error('Not implemented');
+  }
+
+  Future<void> pollJoinRequestStatus() {
+    return Future.error('Not implemented');
+  }
 }
 
 class FamilyJoinException implements Exception {
@@ -499,4 +569,9 @@ class FamilyJoinException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class SessionExpiredException implements Exception {
+  @override
+  String toString() => 'Session expired';
 }

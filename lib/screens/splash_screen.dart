@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:informatik_projekt/screens/auth/login/login_screen.dart';
 import 'package:informatik_projekt/screens/family/setup_screen.dart';
@@ -12,9 +13,7 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController controller;
+class _SplashScreenState extends State<SplashScreen> {
   final ApiService _apiService = ApiService();
   Timer? _retryTimer;
   DateTime? _firstErrorTime;
@@ -23,18 +22,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-
-    controller.forward();
-    controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed && mounted) {
-        _determineDestination();
-      }
-    });
+    _determineDestination();
   }
 
   Future<void> _determineDestination() async {
@@ -53,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen>
     // 2. Check if user belongs to any family
     try {
       final families = await _apiService.getFamily();
-      
+
       // Reset error tracking on success
       _firstErrorTime = null;
       _snackbarShowing = false;
@@ -70,7 +58,14 @@ class _SplashScreenState extends State<SplashScreen>
           );
         }
       }
+    } on SessionExpiredException {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
     } catch (e) {
+      print('splash error: $e');
       // Server or Network Error
       _handleNetworkError();
     }
@@ -83,7 +78,8 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     // Show snackbar after 5 seconds of continuous errors
-    if (now.difference(_firstErrorTime!) >= const Duration(seconds: 5) && !_snackbarShowing) {
+    if (now.difference(_firstErrorTime!) >= const Duration(seconds: 5) &&
+        !_snackbarShowing) {
       _showErrorSnackbar();
     }
 
@@ -120,18 +116,12 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    controller.dispose();
     _retryTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
-
