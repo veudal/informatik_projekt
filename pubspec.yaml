@@ -44,6 +44,7 @@ dependencies:
   google_fonts: 9.0.0
   flutter_secure_storage: ^11.2.0
   image_picker: ^1.2.4
+  table_calendar: ^3.3.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
