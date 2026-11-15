@@ -498,67 +498,110 @@ class ApiService {
     }).toList();
   }
 
-  Future<String> requestFamilyInviteCode() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/invite/create-code'),
-        headers: await _authorizationHeaders(includeJsonContentType: true),
-      );
+  Future<String> createInvitation() {
+    return storage
+        .read(key: AppConfig.storageTokenKey)
+        .then((token) {
+          return http.post(
+            Uri.parse('$baseUrl/family/invite/create-invitation'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+        })
+        .then((response) {
+          if (response.statusCode != HttpStatus.created) {
+            throw Exception('HTTP Error ${response.statusCode}');
+          }
 
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception('HTTP Error ${response.statusCode}');
-      }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final code = body['code']?.toString();
-      if (code == null || code.isEmpty) {
-        throw const FormatException('Invite code missing in response');
-      }
-      return code;
-    } on SocketException {
-      throw Exception('No internet connection');
-    } on http.ClientException {
-      throw Exception('Network error occurred');
-    }
+          return jsonDecode(response.body)['id'] as String;
+        });
   }
 
-  Future<List<JoinRequest>> pollJoinRequests() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/invite/poll-requests'),
-        headers: await _authorizationHeaders(includeJsonContentType: true),
-      );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception('HTTP Error ${response.statusCode}');
-      }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final requests = body['requests'] as List<dynamic>? ?? const [];
-      return requests
-          .whereType<Map<String, dynamic>>()
-          .map(
-            (entry) => JoinRequest(
-              name: entry['name']?.toString() ?? '',
-              requesterId: UuidValue.fromString(
-                entry['requesterId']?.toString() ?? '',
-              ),
-            ),
-          )
-          .toList();
-    } on SocketException {
-      throw Exception('No internet connection');
-    } on http.ClientException {
-      throw Exception('Network error occurred');
-    }
+  Future<JoinRequest?> pollJoinRequest(String id) {
+    return storage
+        .read(key: AppConfig.storageTokenKey)
+        .then((token) {
+          return http.get(
+            Uri.parse('$baseUrl/family/invite/poll-redeemer/$id'),
+            headers: {'Authorization': 'Bearer $token'},
+          );
+        })
+        .then((response) {
+          if (response.statusCode == HttpStatus.noContent) {
+            return null;
+          } else if (response.statusCode == HttpStatus.ok) {
+            return JoinRequest.fromJson(jsonDecode(response.body));
+          } else {
+            throw Exception('HTTP Error ${response.statusCode}');
+          }
+        });
   }
 
-  Future<bool> sendJoinRequest(String code) {
-    return Future.error('Not implemented');
+  Future<void> respondRedeemer(String id, bool accept) {
+    return storage
+        .read(key: AppConfig.storageTokenKey)
+        .then((token) {
+          return http.post(
+            Uri.parse('$baseUrl/family/invite/respond-redeemer/$id'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'accept': accept}),
+          );
+        })
+        .then((response) {
+          if (response.statusCode != HttpStatus.ok) {
+            throw Exception('HTTP Error ${response.statusCode}');
+          }
+        });
   }
 
-  Future<void> pollJoinRequestStatus() {
-    return Future.error('Not implemented');
+  Future<void> redeem(String id) {
+    return storage
+        .read(key: AppConfig.storageTokenKey)
+        .then((token) {
+          return http.post(
+            Uri.parse('$baseUrl/family/invite/redeem/$id'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+        })
+        .then((response) {
+          if (response.statusCode != HttpStatus.ok) {
+            throw Exception('HTTP Error ${response.statusCode}');
+          }
+        });
+  }
+
+  Future<String> pollStatus(String id) {
+    return storage
+        .read(key: AppConfig.storageTokenKey)
+        .then((token) {
+          return http.get(
+            Uri.parse('$baseUrl/family/invite/poll-status/$id'),
+            headers: {'Authorization': 'Bearer $token'},
+          );
+        })
+        .then((response) {
+          if (response.statusCode == HttpStatus.ok) {
+            String status = jsonDecode(response.body)['status'] as String;
+
+            if (status == 'pending' ||
+                status == 'accepted' ||
+                status == 'denied') {
+              return status;
+            }
+
+            throw Exception('Unknown status reported: $status');
+          } else {
+            throw Exception('HTTP Error ${response.statusCode}');
+          }
+        });
   }
 }
 

@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:informatik_projekt/screens/settings/settings_screen.dart';
 import 'package:informatik_projekt/services/api_service.dart';
+import 'package:informatik_projekt/services/structs/join_request.dart';
 import 'package:informatik_projekt/widgets/colored_button.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -14,33 +16,61 @@ class InvitationScreen extends StatefulWidget {
 }
 
 class _InvitationScreenState extends State<InvitationScreen> {
-  static final int _pollDelay = 500;
   final ApiService _apiService = ApiService();
   late final Future<String> _invitationCode;
-  bool _pollRequests = false;
+  bool _isPolling = false;
 
   @override
   void initState() {
     super.initState();
-    _invitationCode = _apiService.requestFamilyInviteCode();
-  }
-
-  void _pollJoinRequests() async {
-    while (_pollRequests) {
-      // TODO
-
-      await Future<void>.delayed(Duration(milliseconds: _pollDelay));
-    }
+    _invitationCode = _apiService.createInvitation();
   }
 
   @override
   void dispose() {
-    _pollRequests = false;
+    _isPolling = false;
     super.dispose();
   }
 
-  void _onReceiveRequest(String name, UuidValue uuid) {
-    if (!mounted) return;
+  void poll(String id) async {
+    while (_isPolling && mounted) {
+      JoinRequest? joinRequest;
+
+      try {
+        joinRequest = await _apiService.pollJoinRequest(id);
+      } on Exception catch (e) {
+        _isPolling = false;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Ein unerwarteter Fehler ist aufgetreten. Generiere um sicher zu gehen einen neuen Einladungscode. Fehler: $e',
+              ),
+            ),
+          );
+        }
+      }
+
+      if (!_isPolling || !mounted) break;
+
+      if (joinRequest != null) {
+        _isPolling = false;
+        _onReceiveRequest(id, joinRequest.displayName, joinRequest.id);
+      } else {
+        await Future.delayed(Duration(milliseconds: 750));
+      }
+    }
+  }
+
+  void _onReceiveRequest(
+    String invitationId,
+    String displayName,
+    UuidValue uuid,
+  ) {
+    if (!mounted) {
+      return;
+    }
 
     double defaultCornerRadius = 20.0;
 
@@ -50,7 +80,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
         return Padding(
           padding: EdgeInsets.all(defaultCornerRadius * 0.5),
           child: SizedBox(
-            height: 200,
+            height: 300,
             child: Column(
               children: [
                 Align(
@@ -62,7 +92,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: name,
+                        text: displayName,
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       TextSpan(text: ' möchte deiner Familie beitreten!'),
@@ -77,14 +107,14 @@ class _InvitationScreenState extends State<InvitationScreen> {
                     ColoredButton(
                       color: Colors.red,
                       onPressed: () {
-                        // TODO
+                        _onDecide(invitationId, false, displayName);
                       },
                       child: const Text('Ablehnen'),
                     ),
                     ColoredButton(
                       color: Colors.green,
                       onPressed: () {
-                        // TODO
+                        _onDecide(invitationId, true, displayName);
                       },
                       child: const Text('Annehmen'),
                     ),
@@ -98,12 +128,41 @@ class _InvitationScreenState extends State<InvitationScreen> {
     );
   }
 
+  void _onDecide(String invitationId, bool accept, String displayName) async {
+    try {
+      await _apiService.respondRedeemer(invitationId, accept);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$displayName wurde in die Familie aufgenommen.',
+            ),
+          ),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ein unerwarteter Fehler ist aufgetreten. Möglicherweise konnte die eingeladene Person nicht in die Familie aufgenommen werden. Fehler: $e',
+            ),
+          ),
+        );
+      }
+    }
+
+    if (mounted) {
+      // force return to settings screen
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => SettingsScreen()), (_) => false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Familienmitglied einladen'),
-      ),
+      appBar: AppBar(title: const Text('Familienmitglied einladen')),
       body: FutureBuilder(
         future: _invitationCode,
         builder: (context, snapshot) {
@@ -112,12 +171,15 @@ class _InvitationScreenState extends State<InvitationScreen> {
               child: Text('Ein unerwarteter Fehler ist aufgetreten.'),
             );
           } else if (snapshot.hasData) {
-            Future.delayed(Duration(milliseconds: _pollDelay), () {
-              _pollRequests = true;
-              _pollJoinRequests();
-            });
+            String id = snapshot.data ?? '';
 
-            String code = snapshot.data ?? '';
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              await Future.delayed(Duration(milliseconds: 1000));
+              if (mounted) {
+                _isPolling = true;
+                poll(id);
+              }
+            });
 
             return Center(
               child: Column(
@@ -125,7 +187,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
                 spacing: 32,
                 children: [
                   QrImageView(
-                    data: code,
+                    data: id,
                     version: QrVersions.auto,
                     size: 280,
                     backgroundColor: Colors.white,
@@ -133,7 +195,11 @@ class _InvitationScreenState extends State<InvitationScreen> {
                       'Der QR code konnte nicht generiert werden :$error',
                     ),
                   ),
-                  const Text('Scanne den QR code auf dem Gerät des Familienmitglieds das du einladen möchtest', textAlign: TextAlign.center),
+                  Text(id, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24.0)),
+                  const Text(
+                    'Reiche den Einladungs code weiter an das Familienmitflied dass du einladen möchtest.',
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             );

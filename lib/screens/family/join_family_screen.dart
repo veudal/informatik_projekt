@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:informatik_projekt/screens/main_navigation.dart';
+import 'package:informatik_projekt/services/api_service.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:informatik_projekt/screens/family/qr_scanner_screen.dart';
 
@@ -15,8 +18,11 @@ class JoinFamilyScreen extends StatefulWidget {
 
 class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
   static final RegExp _pattern = RegExp(r'[A-Za-z0-9]');
+  final ApiService _apiService = ApiService();
   final PinInputController _controller = PinInputController();
   bool _canJoin = false;
+  bool _showLoadingButton = false;
+  bool _isPolling = true;
 
   Future<void> _openQrScanner(BuildContext context) async {
     if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
@@ -32,32 +38,116 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Plattform is not supporting QR scanning.'),
+          content: Text(
+            'Die Platform des Gerätes unterstützt keinen QR Scanner.',
+          ),
         ),
       );
     }
   }
 
-  void onChanged(String input) {
+  void onInputChanged(String input) {
     setState(() {
       _canJoin = input.length == 6;
     });
   }
 
-  void onPressJoin() {
+  void onPressJoin() async {
+    setState(() {
+      _showLoadingButton = true;
+    });
 
+    if (!mounted) return;
+
+    String id = _controller.textController.text;
+
+    try {
+      await _apiService.redeem(id);
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ein unerwarteter Fehler ist aufgetreten. Der Einladungscode konnte nicht eingelöst werden. Fehler: $e',
+            ),
+          ),
+        );
+
+        setState(() {
+          _showLoadingButton = false;
+        });
+      }
+
+      return;
+    }
+
+    await Future.delayed(Duration(milliseconds: 500));
+
+    if (mounted) {
+      _isPolling = true;
+      poll(id);
+    }
+  }
+
+  void poll(String id) async {
+    while (_isPolling && mounted) {
+      String status = '';
+
+      try {
+        status = await _apiService.pollStatus(id);
+      } on Exception catch (e) {
+        _isPolling = false;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Ein unerwarteter Fehler ist aufgetreten. Bitte ein Elternteil um einen neuen Einladungscode. Fehler: $e',
+              ),
+            ),
+          );
+        }
+      }
+
+      if (!_isPolling || !mounted) break;
+
+      if (status == 'accepted') {
+        _isPolling = false;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Anfrage angenommen')));
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => MainNavigation()),
+          (_) => false,
+        );
+      } else if (status == 'denied') {
+        _isPolling = false;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Anfrage abgelehnt')));
+
+        setState(() {
+          _showLoadingButton = false;
+        });
+      } else if (status == 'pending') {
+        await Future.delayed(Duration(milliseconds: 500));
+      }
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _isPolling = false;
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Familienmitglied einladen')),
+      appBar: AppBar(
+        title: const Text('Familienmitglied einladen'),
+        automaticallyImplyLeading: !_showLoadingButton,
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -78,7 +168,8 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
                     FilteringTextInputFormatter.allow(_pattern),
                   ],
                   pinController: _controller,
-                  onChanged: onChanged,
+                  onChanged: onInputChanged,
+                  enabled: _showLoadingButton,
                 ),
                 IconButton.filled(
                   onPressed: () => _openQrScanner(context),
@@ -97,8 +188,10 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
             ),
             SizedBox(height: 48),
             ElevatedButton(
-              onPressed: _canJoin ? onPressJoin : null,
-              child: Text('Beitreten'),
+              onPressed: !_showLoadingButton && _canJoin ? onPressJoin : null,
+              child: _showLoadingButton
+                  ? CircularProgressIndicator()
+                  : Text('Beitreten'),
             ),
           ],
         ),
