@@ -135,9 +135,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '$displayName wurde in die Familie aufgenommen.',
-            ),
+            content: Text('$displayName wurde in die Familie aufgenommen.'),
           ),
         );
       }
@@ -154,8 +152,17 @@ class _InvitationScreenState extends State<InvitationScreen> {
     }
 
     if (mounted) {
-      // force return to settings screen
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => SettingsScreen()), (_) => false);
+      // pop modal bottom sheet
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => SettingsScreen()),
+      );
+
+      if (mounted) { // check if for some reason this screen was popped accidentally
+        setState(() {
+          _invitationCode = _apiService.createInvitation();
+        });
+      }
     }
   }
 
@@ -195,7 +202,13 @@ class _InvitationScreenState extends State<InvitationScreen> {
                       'Der QR code konnte nicht generiert werden :$error',
                     ),
                   ),
-                  Text(id, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24.0)),
+                  Text(
+                    id,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24.0,
+                    ),
+                  ),
                   const Text(
                     'Reiche den Einladungs code weiter an das Familienmitflied dass du einladen möchtest.',
                     textAlign: TextAlign.center,
