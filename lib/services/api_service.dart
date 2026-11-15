@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
 import '../models/calendar_entry.dart';
 import '../models/family.dart';
+import '../models/goal.dart';
 import '../models/transaction.dart';
 import '../models/wallet.dart';
 import 'structs/join_request.dart';
@@ -370,6 +371,61 @@ class ApiService {
         '(Status: ${response.statusCode})',
       );
     }
+  }
+
+  Future<List<Goal>> getGoalsForFamily(String familyId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/goals/family/$familyId'),
+      headers: await _authorizationHeaders(),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Fehler beim Laden der Ziele (Status: ${response.statusCode})',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw const FormatException('Unexpected goal data from server');
+    }
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map(Goal.fromJson)
+        .toList();
+  }
+
+  Future<Goal> createGoal({
+    required String familyId,
+    required String name,
+    required int targetCents,
+    DateTime? deadline,
+    List<String> participantIds = const [],
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/goals'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({
+        'familyId': familyId,
+        'goalName': name,
+        'targetCents': targetCents,
+        if (deadline != null)
+          'deadline': deadline.toIso8601String().substring(0, 10),
+        'participantIds': participantIds,
+      }),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Fehler beim Erstellen des Ziels (Status: ${response.statusCode})',
+      );
+    }
+    return Goal.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
   /// Liefert User-ID -> Name (Vorname, sonst Anzeigename) aller Familienmitglieder.
