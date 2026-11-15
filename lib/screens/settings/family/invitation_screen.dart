@@ -154,10 +154,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
 
     if (mounted) {
       // pop modal bottom sheet
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => SettingsScreen()),
-      );
+      Navigator.maybePop(context);
 
       if (mounted) {
         // check if for some reason this screen was popped accidentally
