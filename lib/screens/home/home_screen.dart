@@ -32,6 +32,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _apiService.getWalletsForFamily(family.id),
       _apiService.getFamilyWalletsForFamily(family.id),
     ]);
+
+    Map<String, String> memberNames = const {};
+    try {
+      memberNames = await _apiService.getFamilyMemberNames(family.id);
+    } catch (_) {
+      // Namen sind nur für die Anzeige – bei Fehler "Einzelkonto" ohne Namen anzeigen
+    }
+
     final memberAccounts = await Future.wait(
       wallets.first.map((wallet) async {
         final balance = await _apiService.getWalletBalance(wallet.id);
@@ -49,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
       family: family,
       familyWalletId: familyAccounts.firstOrNull?.wallet.id,
       accounts: [...familyAccounts, ...memberAccounts],
+      memberNames: memberNames,
     );
   }
 
@@ -57,7 +66,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _isCreatingFamilyWallet = true;
     });
     try {
-      await _apiService.createFamilyWallet(family.id, 'Familienkonto');
+      await _apiService.createFamilyWallet(
+        family.id,
+        'Familienkonto ${family.name}',
+      );
       if (!mounted) return;
       setState(() {
         _homeData = _loadHomeData();
@@ -146,34 +158,50 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final account = data.accounts[index];
-final isFamilyAccount = account.wallet.kind.toLowerCase() == 'family';
+        final isFamilyAccount = account.wallet.isFamily;
+        final accountName = account.wallet.displayName(
+          familyName: data.family?.name,
+          memberNames: data.memberNames,
+        );
 
-// Fallback: Wenn balanceCents null ist, setze es auf 0
-final balanceCents = account.balanceCents ?? 0; 
-final balance = (balanceCents / 100).toStringAsFixed(2).replaceAll('.', ',');
+        // Fallback: Wenn balanceCents null ist, setze es auf 0
+        final balanceCents = account.balanceCents ?? 0;
+        final balance = (balanceCents / 100)
+            .toStringAsFixed(2)
+            .replaceAll('.', ',');
 
-return Card(
-  child: ListTile(
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: 20,
-      vertical: 8,
-    ),
-    title: Text(account.wallet.name),
-    trailing: Text('$balance €'), // Hier wird jetzt immer der Betrag mit € angezeigt
-    onTap: () {
-      Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => WalletDetailsScreen(
-      walletId: account.wallet.id,
-      familyWalletId: isFamilyAccount ? null : data.familyWalletId,
-      accountName: account.wallet.name,
-      isFamilyWallet: isFamilyAccount,
-      initialBalanceCents: balanceCents,
-      familyId: data.family?.id, // <-- Hier die familyId übergeben
-    ),
-  ),
-);
+        return Card(
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Icon(
+              isFamilyAccount ? Icons.family_restroom : Icons.person,
+            ),
+            title: Text(accountName),
+            trailing: Text('$balance €'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => WalletDetailsScreen(
+                    walletId: account.wallet.id,
+                    familyWalletId: isFamilyAccount
+                        ? null
+                        : data.familyWalletId,
+                    accountName: accountName,
+                    isFamilyWallet: isFamilyAccount,
+                    initialBalanceCents: balanceCents,
+                    familyId: data.family?.id,
+                    familyName: data.family?.name,
+                    memberNames: data.memberNames,
+                  ),
+                ),
+              ).then((_) {
+                // Salden nach Rückkehr aktualisieren
+                if (mounted) setState(() => _homeData = _loadHomeData());
+              });
             },
           ),
         );
@@ -187,11 +215,13 @@ class _HomeData {
     required this.family,
     required this.accounts,
     this.familyWalletId,
+    this.memberNames = const {},
   });
 
   final Family? family;
   final String? familyWalletId;
   final List<_AccountData> accounts;
+  final Map<String, String> memberNames;
 }
 
 class _AccountData {

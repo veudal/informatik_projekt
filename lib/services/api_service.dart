@@ -364,6 +364,132 @@ class ApiService {
       );
     }
   }
+
+  /// Liefert User-ID -> Name (Vorname, sonst Anzeigename) aller Familienmitglieder.
+  Future<Map<String, String>> getFamilyMemberNames(String familyId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/family/$familyId'),
+      headers: await _authorizationHeaders(),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired');
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Fehler beim Laden der Familienmitglieder (Status: ${response.statusCode})',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    final names = <String, String>{};
+    if (decoded is List) {
+      for (final user in decoded) {
+        if (user is! Map<String, dynamic>) continue;
+        final id = user['id']?.toString();
+        if (id == null) continue;
+        final firstName = user['firstName']?.toString().trim() ?? '';
+        final displayName = user['displayName']?.toString().trim() ?? '';
+        names[id] = firstName.isNotEmpty ? firstName : displayName;
+      }
+    }
+    return names;
+  }
+
+  /// Überweisung zwischen zwei Einzelkonten innerhalb der Familie.
+  Future<void> createMemberTransfer(
+    String fromWalletId,
+    String toWalletId,
+    int amountCents,
+    String note,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/transactions/member-transfer'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({
+        'fromWalletId': fromWalletId,
+        'toWalletId': toWalletId,
+        'amountCents': amountCents,
+        'note': note,
+      }),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired');
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Fehler bei der Überweisung (Status: ${response.statusCode})',
+      );
+    }
+  }
+
+  /// Simulierte Ein- ([isDeposit] = true) oder Auszahlung zwischen Familienkonto und externer Bank.
+  Future<void> createExternalTransfer(
+    String familyWalletId, {
+    required bool isDeposit,
+    required int amountCents,
+    required String bankName,
+    String? note,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/family-wallets/$familyWalletId/external-transfer'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({
+        'direction': isDeposit ? 'deposit' : 'withdrawal',
+        'amountCents': amountCents,
+        'bankName': bankName,
+        'note': note,
+      }),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired');
+    }
+    if (response.statusCode == 400 && !isDeposit) {
+      throw Exception('Nicht genügend Guthaben auf dem Familienkonto');
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Fehler bei der ${isDeposit ? 'Einzahlung' : 'Auszahlung'} '
+        '(Status: ${response.statusCode})',
+      );
+    }
+  }
+
+  /// Externe Bankbuchungen des Familienkontos. amountCents ist aus Sicht
+  /// des Familienkontos vorzeichenbehaftet (+ Einzahlung, - Auszahlung).
+  Future<List<Transaction>> getExternalTransfers(String familyWalletId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/external-transfers/family-wallet/$familyWalletId'),
+      headers: await _authorizationHeaders(),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired');
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Fehler beim Laden der Bankbuchungen (Status: ${response.statusCode})',
+      );
+    }
+    final data = jsonDecode(response.body) as List;
+    return data.map((raw) {
+      final json = raw as Map<String, dynamic>;
+      final amount = (json['amountCents'] ?? json['amount_cents'] ?? 0) as num;
+      final bank = json['bankName']?.toString() ?? 'Externe Bank';
+      final note = json['note']?.toString() ?? '';
+      final isDeposit = amount >= 0;
+      return Transaction(
+        id: json['id']?.toString() ?? '',
+        amountCents: amount.toInt(),
+        kind: isDeposit ? 'external_deposit' : 'external_withdrawal',
+        note: '${isDeposit ? 'Von' : 'An'} $bank${note.isEmpty ? '' : ' · $note'}',
+        createdAt: DateTime.parse(
+          json['createdAt'] ?? DateTime.now().toIso8601String(),
+        ),
+      );
+    }).toList();
+  }
 }
 
 class FamilyJoinException implements Exception {

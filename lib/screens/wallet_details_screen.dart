@@ -7,6 +7,18 @@ import 'package:fl_chart/fl_chart.dart';
 import '../services/api_service.dart';
 import '../models/wallet.dart';
 
+/// Externe Banken für simulierte Ein-/Auszahlungen.
+const List<String> kExternalBanks = [
+  'Sparkasse',
+  'Volksbank',
+  'Deutsche Bank',
+  'Commerzbank',
+  'ING',
+  'DKB',
+  'Postbank',
+  'N26',
+];
+
 class WalletDetailsScreen extends StatefulWidget {
   final String walletId;
   final String? familyWalletId;
@@ -15,16 +27,22 @@ class WalletDetailsScreen extends StatefulWidget {
   final int? initialBalanceCents;
 
   final String? familyId;
+  final String? familyName;
 
-const WalletDetailsScreen({
-  super.key,
-  required this.walletId,
-  required this.familyWalletId,
-  required this.accountName,
-  required this.isFamilyWallet,
-  this.initialBalanceCents,
-  this.familyId, // <-- Im Konstruktor aufnehmen
-});
+  /// User-ID -> Name, um Zielkonten als `Einzelkonto <Name>` anzuzeigen.
+  final Map<String, String> memberNames;
+
+  const WalletDetailsScreen({
+    super.key,
+    required this.walletId,
+    required this.familyWalletId,
+    required this.accountName,
+    required this.isFamilyWallet,
+    this.initialBalanceCents,
+    this.familyId,
+    this.familyName,
+    this.memberNames = const {},
+  });
 
   @override
   State<WalletDetailsScreen> createState() => _WalletDetailsScreenState();
@@ -46,25 +64,38 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
     });
   }
 
+  /// Liefert Saldo und Transaktionen. Alle Beträge sind aus Sicht
+  /// des angezeigten Kontos vorzeichenbehaftet (+ Zufluss, - Abfluss).
   Future<Map<String, dynamic>> _fetchData() async {
     if (widget.isFamilyWallet) {
-      // Transaktionen für das Familienkonto laden
-      final transactions = await _apiService.getTransactionsByFamilyWallet(
-        widget.walletId,
+      final results = await Future.wait([
+        _apiService.getTransactionsByFamilyWallet(widget.walletId),
+        _apiService.getExternalTransfers(widget.walletId),
+      ]);
+
+      // Überweisung eines Mitglieds ist dort negativ -> für das Familienkonto ein Zufluss
+      final memberTransfers = results[0]
+          .map(
+            (tx) => Transaction(
+              id: tx.id,
+              amountCents: -tx.amountCents,
+              kind: tx.kind,
+              note: tx.note,
+              createdAt: tx.createdAt,
+            ),
+          )
+          .toList();
+      final transactions = [...memberTransfers, ...results[1]]
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      final balance = transactions.fold<int>(
+        0,
+        (sum, tx) => sum + tx.amountCents,
       );
-      transactions.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-      // Kontostand dynamisch aus den Transaktionen berechnen!
-      // Da eine User-Überweisung negativ ist (-32€), ist es für das Familienkonto ein Zufluss (+32€).
-      int calculatedBalanceCents = 0;
-      for (var tx in transactions) {
-        calculatedBalanceCents += (-tx.amountCents);
-      }
-
-      return {'balance': calculatedBalanceCents, 'transactions': transactions};
+      return {'balance': balance, 'transactions': transactions};
     }
 
-    // Für persönliche Konten:
+    // Für Einzelkonten:
     final balance = await _apiService.getWalletBalance(widget.walletId);
     final transactions = await _apiService.getTransactionsByWallet(
       widget.walletId,
@@ -78,22 +109,10 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
     int currentBalance,
     List<Transaction> transactions,
   ) {
-    // Für das Familienkonto müssen wir die Beträge für den Graphen invertieren (+/-),
-    // da eine Abbuchung des Users dort als Einzahlung (+ Guthaben) verbucht wird.
-    final adjustedTransactions = widget.isFamilyWallet
-        ? transactions.map((tx) => Transaction(
-            id: tx.id,
-            amountCents: -tx.amountCents,
-            kind: tx.kind,
-            note: tx.note,
-            createdAt: tx.createdAt,
-          )).toList()
-        : transactions;
+    if (transactions.isEmpty) return [FlSpot(0, currentBalance / 100)];
 
-    if (adjustedTransactions.isEmpty) return [FlSpot(0, currentBalance / 100)];
-
-    List<FlSpot> spots = [];
-    int totalSumChange = adjustedTransactions.fold(
+    final spots = <FlSpot>[];
+    final totalSumChange = transactions.fold<int>(
       0,
       (sum, tx) => sum + tx.amountCents,
     );
@@ -101,163 +120,380 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
 
     spots.add(FlSpot(0, runningBalance));
 
-    for (int i = 0; i < adjustedTransactions.length; i++) {
-      runningBalance += (adjustedTransactions[i].amountCents / 100);
+    for (int i = 0; i < transactions.length; i++) {
+      runningBalance += (transactions[i].amountCents / 100);
       spots.add(FlSpot((i + 1).toDouble(), runningBalance));
     }
 
     return spots;
   }
 
-  // Dialog für Überweisung / Transaktion öffnen
-  void _showTransferDialog() async {
-  final amountController = TextEditingController();
-  final noteController = TextEditingController();
-  bool isWithdrawal = true; // true = Senden, false = Anfordern
-  
-  // Verfügbare Zielkonten laden
-  List<WalletAccount> availableWallets = [];
-  try {
-    if (widget.familyId != null) {
-      final memberWallets = await _apiService.getWalletsForFamily(widget.familyId!);
-      final familyWallets = await _apiService.getFamilyWalletsForFamily(widget.familyId!);
-      availableWallets = [...familyWallets, ...memberWallets];
-      // Das eigene Konto aus der Auswahlliste entfernen, damit man nicht an sich selbst überweist
-      availableWallets.removeWhere((w) => w.id == widget.walletId);
+  String _kindLabel(Transaction tx) {
+    switch (tx.kind) {
+      case 'transfer':
+      case 'member_transfer':
+        return tx.amountCents >= 0 ? 'Überweisung erhalten' : 'Überweisung gesendet';
+      case 'external_deposit':
+        return 'Einzahlung';
+      case 'external_withdrawal':
+        return 'Auszahlung';
+      default:
+        return tx.kind.toUpperCase();
     }
-  } catch (_) {}
+  }
 
-  WalletAccount? selectedTargetWallet = availableWallets.isNotEmpty ? availableWallets.first : null;
+  int? _parseAmountCents(String input) {
+    final euroAmount = double.tryParse(input.replaceAll(',', '.'));
+    if (euroAmount == null || euroAmount <= 0) return null;
+    return (euroAmount * 100).round();
+  }
 
-  if (!mounted) return;
+  void _showSnack(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? Colors.red : Colors.green,
+      ),
+    );
+  }
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: const Text('Geld überweisen'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Dropdown für Zielkonto-Auswahl
-                if (availableWallets.isNotEmpty)
-                  DropdownButtonFormField<WalletAccount>(
-                    value: selectedTargetWallet,
-                    decoration: const InputDecoration(
-                      labelText: 'Zielkonto',
-                      border: OutlineInputBorder(),
+  // ---------------------------------------------------------------------------
+  // Einzelkonto: Überweisung an Familienkonto oder an andere Einzelkonten
+  // ---------------------------------------------------------------------------
+  void _showTransferDialog() async {
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+
+    List<WalletAccount> availableWallets = [];
+    try {
+      if (widget.familyId != null) {
+        final results = await Future.wait([
+          _apiService.getFamilyWalletsForFamily(widget.familyId!),
+          _apiService.getWalletsForFamily(widget.familyId!),
+        ]);
+        availableWallets = [...results[0], ...results[1]];
+        // Das eigene Konto entfernen, damit man nicht an sich selbst überweist
+        availableWallets.removeWhere((w) => w.id == widget.walletId);
+      }
+    } catch (_) {}
+
+    WalletAccount? selectedTargetWallet =
+        availableWallets.isNotEmpty ? availableWallets.first : null;
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        bool isSubmitting = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Geld überweisen'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (availableWallets.isEmpty)
+                      const Text('Keine Zielkonten in der Familie gefunden.')
+                    else
+                      DropdownButtonFormField<WalletAccount>(
+                        initialValue: selectedTargetWallet,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Empfänger',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: availableWallets.map((wallet) {
+                          return DropdownMenuItem(
+                            value: wallet,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  wallet.isFamily
+                                      ? Icons.family_restroom
+                                      : Icons.person,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    wallet.displayName(
+                                      familyName: widget.familyName,
+                                      memberNames: widget.memberNames,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setStateDialog(() => selectedTargetWallet = val);
+                        },
+                      ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Betrag in €',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                    items: availableWallets.map((wallet) {
-  return DropdownMenuItem(
-    value: wallet,
-    child: Text(wallet.name),
-  );
-}).toList(), // <-- WICHTIG: Hier müssen Klammern hin!
-                    onChanged: (val) {
-                      setStateDialog(() {
-                        selectedTargetWallet = val;
-                      });
-                    },
-                  ),
-                if (availableWallets.isNotEmpty) const SizedBox(height: 16),
-                
-                TextField(
-                  controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Betrag in €',
-                    border: OutlineInputBorder(),
-                  ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        labelText: 'Verwendungszweck / Notiz',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Verwendungszweck / Notiz',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Abbrechen'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting || selectedTargetWallet == null
+                      ? null
+                      : () async {
+                          final amountCents =
+                              _parseAmountCents(amountController.text);
+                          if (amountCents == null) {
+                            _showSnack('Bitte einen gültigen Betrag eingeben',
+                                error: true);
+                            return;
+                          }
+                          final target = selectedTargetWallet!;
+                          final note = noteController.text.isEmpty
+                              ? 'Überweisung'
+                              : noteController.text;
+
+                          setStateDialog(() => isSubmitting = true);
+                          try {
+                            if (target.isFamily) {
+                              // Einzelkonto -> Familienkonto
+                              await _apiService.createTransaction(
+                                widget.walletId,
+                                target.id,
+                                -amountCents,
+                                'transfer',
+                                note,
+                              );
+                            } else {
+                              // Einzelkonto -> anderes Einzelkonto
+                              await _apiService.createMemberTransfer(
+                                widget.walletId,
+                                target.id,
+                                amountCents,
+                                note,
+                              );
+                            }
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+                            _loadWalletData();
+                            _showSnack('Überweisung erfolgreich ausgeführt!');
+                          } catch (e) {
+                            setStateDialog(() => isSubmitting = false);
+                            _showSnack('Fehler: $e', error: true);
+                          }
+                        },
+                  child: const Text('Ausführen'),
                 ),
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Abbrechen'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final double? euroAmount = double.tryParse(
-                    amountController.text.replaceAll(',', '.'),
-                  );
-                  if (euroAmount == null || euroAmount <= 0) return;
+            );
+          },
+        );
+      },
+    );
+  }
 
-                  int amountCents = (euroAmount * 100).round();
-                  if (isWithdrawal) {
-                    amountCents = -amountCents; // Abzug beim Sender
-                  }
+  // ---------------------------------------------------------------------------
+  // Familienkonto: simulierte Ein-/Auszahlung von/an externe Bank
+  // ---------------------------------------------------------------------------
+  void _showExternalTransferDialog() {
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    final otherBankController = TextEditingController();
+    bool isDeposit = true;
+    String selectedBank = kExternalBanks.first;
+    const otherBankValue = '__other__';
 
-                  // Wir nutzen die ID des ausgewählten Zielkontos oder das Standard-Familienkonto als Fallback
-                  final targetFamilyWalletId = selectedTargetWallet?.id ?? widget.familyWalletId;
-                  if (targetFamilyWalletId == null) return;
-
-                  try {
-                    await _apiService.createTransaction(
-                      widget.walletId,
-                      targetFamilyWalletId,
-                      amountCents,
-                      'transfer',
-                      noteController.text.isEmpty ? 'Überweisung' : noteController.text,
-                    );
-
-                    if (mounted) {
-                      Navigator.pop(context);
-                      _loadWalletData(); // UI aktualisieren
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Überweisung erfolgreich ausgeführt!'),
-                          backgroundColor: Colors.green,
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        bool isSubmitting = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Ein- / Auszahlung (Simulation)'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(
+                          value: true,
+                          label: Text('Einzahlen'),
+                          icon: Icon(Icons.arrow_downward),
                         ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Fehler: $e'),
-                          backgroundColor: Colors.red,
+                        ButtonSegment(
+                          value: false,
+                          label: Text('Auszahlen'),
+                          icon: Icon(Icons.arrow_upward),
                         ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Ausführen'),
+                      ],
+                      selected: {isDeposit},
+                      onSelectionChanged: (s) =>
+                          setStateDialog(() => isDeposit = s.first),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedBank,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: isDeposit ? 'Von Bank' : 'An Bank',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.account_balance),
+                      ),
+                      items: [
+                        ...kExternalBanks.map(
+                          (b) => DropdownMenuItem(value: b, child: Text(b)),
+                        ),
+                        const DropdownMenuItem(
+                          value: otherBankValue,
+                          child: Text('Andere Bank …'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setStateDialog(() => selectedBank = val);
+                        }
+                      },
+                    ),
+                    if (selectedBank == otherBankValue) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: otherBankController,
+                        decoration: const InputDecoration(
+                          labelText: 'Name der Bank',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Betrag in €',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        labelText: 'Verwendungszweck / Notiz',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          );
-        },
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Abbrechen'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final amountCents =
+                              _parseAmountCents(amountController.text);
+                          if (amountCents == null) {
+                            _showSnack('Bitte einen gültigen Betrag eingeben',
+                                error: true);
+                            return;
+                          }
+                          final bankName = selectedBank == otherBankValue
+                              ? otherBankController.text.trim()
+                              : selectedBank;
+                          if (bankName.isEmpty) {
+                            _showSnack('Bitte eine Bank angeben', error: true);
+                            return;
+                          }
+
+                          setStateDialog(() => isSubmitting = true);
+                          try {
+                            await _apiService.createExternalTransfer(
+                              widget.walletId,
+                              isDeposit: isDeposit,
+                              amountCents: amountCents,
+                              bankName: bankName,
+                              note: noteController.text.trim().isEmpty
+                                  ? null
+                                  : noteController.text.trim(),
+                            );
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+                            _loadWalletData();
+                            _showSnack(isDeposit
+                                ? 'Einzahlung von $bankName gebucht'
+                                : 'Auszahlung an $bankName gebucht');
+                          } catch (e) {
+                            setStateDialog(() => isSubmitting = false);
+                            _showSnack('Fehler: $e', error: true);
+                          }
+                        },
+                  child: const Text('Ausführen'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget? _buildFab() {
+    if (widget.isFamilyWallet) {
+      return FloatingActionButton.extended(
+        onPressed: _showExternalTransferDialog,
+        icon: const Icon(Icons.account_balance),
+        label: const Text('Ein-/Auszahlen'),
       );
-    },
-  );
-}
+    }
+    if (widget.familyId == null) return null;
+    return FloatingActionButton.extended(
+      onPressed: _showTransferDialog,
+      icon: const Icon(Icons.send),
+      label: const Text('Überweisen'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.isFamilyWallet ? 'Familienkonto' : 'Persönliches Konto',
-        ),
+        title: Text(widget.isFamilyWallet ? 'Familienkonto' : 'Einzelkonto'),
       ),
-      floatingActionButton:
-          widget.isFamilyWallet || widget.familyWalletId == null
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _showTransferDialog,
-              icon: const Icon(Icons.send),
-              label: const Text('Überweisen'),
-            ),
+      floatingActionButton: _buildFab(),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _walletData,
         builder: (context, snapshot) {
@@ -328,11 +564,12 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                             interval: 1,
                             getTitlesWidget: (value, meta) {
                               int index = value.toInt();
-                              if (index == 0 && transactions.isNotEmpty)
+                              if (index == 0 && transactions.isNotEmpty) {
                                 return const Text(
                                   'Start',
                                   style: TextStyle(fontSize: 9),
                                 );
+                              }
                               if (index > 0 && index <= transactions.length) {
                                 final tx = transactions[index - 1];
                                 return Padding(
@@ -381,15 +618,15 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
 
                 Expanded(
                   child: ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80),
                     itemCount: reversedTransactions.length,
                     itemBuilder: (context, index) {
                       final tx = reversedTransactions[index];
-                      
-                      // HIER: Vorzeichen für das Familienkonto umkehren
-                      final displayAmountCents = widget.isFamilyWallet ? -tx.amountCents : tx.amountCents;
-                      final amountEuro = (displayAmountCents / 100).toStringAsFixed(2);
-                      final isPositive = displayAmountCents >= 0;
-                      
+                      final amountEuro = (tx.amountCents / 100)
+                          .toStringAsFixed(2);
+                      final isPositive = tx.amountCents >= 0;
+                      final isExternal = tx.kind.startsWith('external_');
+
                       final dateFormatted =
                           '${tx.createdAt.day}.${tx.createdAt.month}.${tx.createdAt.year} ${tx.createdAt.hour.toString().padLeft(2, '0')}:${tx.createdAt.minute.toString().padLeft(2, '0')}';
 
@@ -397,20 +634,21 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         child: ListTile(
-                          // HIER KOMMT DER CODE HIN:
                           leading: CircleAvatar(
                             backgroundColor: isPositive
                                 ? Colors.green.shade100
                                 : Colors.red.shade100,
                             child: Icon(
-                              isPositive
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward,
+                              isExternal
+                                  ? Icons.account_balance
+                                  : (isPositive
+                                        ? Icons.arrow_downward
+                                        : Icons.arrow_upward),
                               color: isPositive ? Colors.green : Colors.red,
                             ),
                           ),
                           title: Text(
-                            tx.kind.toUpperCase(),
+                            _kindLabel(tx),
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Column(
@@ -427,7 +665,6 @@ class _WalletDetailsScreenState extends State<WalletDetailsScreen> {
                               ),
                             ],
                           ),
-                          // UND HIER DER ZWEITE TEIL:
                           trailing: Text(
                             '${isPositive ? '+' : ''}$amountEuro €',
                             style: TextStyle(
