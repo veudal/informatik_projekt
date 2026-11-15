@@ -20,6 +20,8 @@ class AddAccountInfoScreen extends StatefulWidget {
 
 class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   final TextEditingController displayNameController = TextEditingController();
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
   final String email;
   final String password;
   DateTime? birthDate;
@@ -62,15 +64,19 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
       final result = await _apiService.register(
         email,
         password,
+        firstNameController.text,
+        lastNameController.text,
         displayNameController.text,
         birthDate!,
       );
 
       if (!result['success']) {
         if (!mounted) return;
-        String errorMessage = 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.';
+        String errorMessage =
+            'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.';
         if (result['statusCode'] == 409) {
-          errorMessage = 'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.';
+          errorMessage =
+              'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -108,9 +114,9 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ein Fehler ist aufgetreten: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ein Fehler ist aufgetreten: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -174,6 +180,26 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                       enabled: false,
                     ),
                     const SizedBox(height: 24),
+                    const Text('Vorname'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: firstNameController,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: "Gib deinen Vornamen ein",
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Nachname'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: lastNameController,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: "Gib deinen Nachnamen ein",
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     const Text('Anzeigename'),
                     const SizedBox(height: 8),
                     TextField(
@@ -207,7 +233,9 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-               onPressed: (isConfirmButtonEnabled() && !_isSubmitting) ? onPressConfirm : null,
+                onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
+                    ? onPressConfirm
+                    : null,
                 child: const Text('Bestätigen'),
               ),
             ],

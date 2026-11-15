@@ -90,6 +90,8 @@ class ApiService {
   Future<Map<String, dynamic>> register(
     String email,
     String password,
+    String firstName,
+    String lastName,
     String displayName,
     DateTime birthDate,
   ) async {
@@ -99,6 +101,8 @@ class ApiService {
       body: jsonEncode({
         'email': email,
         'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
         'displayName': displayName,
         'birthDate': birthDate.toIso8601String(),
         'role': 'admin',

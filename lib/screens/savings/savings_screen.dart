@@ -13,9 +13,6 @@ class SavingsScreenState extends State<SavingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-
-         return const Center(child: Text('Profil - kommt bald'));
-
-       
+    return const Center(child: Text('Profil - kommt bald'));
   }
 }
