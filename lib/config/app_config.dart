@@ -1,17 +1,13 @@
 class AppConfig {
-  // API Configuration
-  bool debug = true;
+  // true = localhost, false = Render backend.
+  static const bool useLocalhost = true;
 
-  static String apiBaseUrl = "";
+  static const String apiBaseUrl = useLocalhost
+      ? 'https://informatik-projekt-backend.onrender.com/api'
+      : 'http://localhost:1337/api';
 
-  // Notification Configuration
   static const String vapidKey =
       'BJVJQ06DQ1EfLmp139h21lWR7Sjga7o0iNAoIbeeh2BIqEwsVU_xlGIvaXCxGZ4jwzJkeNyqrHNhUkzsMxZRVhM';
 
-  // Secure Storage Keys
   static const String storageTokenKey = 'token';
-
-  AppConfig() {
-    apiBaseUrl = debug ? "http://localhost:1337/api" :'https://informatik-projekt-backend.onrender.com/api';
-  }
 }
