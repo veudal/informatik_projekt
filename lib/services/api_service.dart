@@ -9,6 +9,7 @@ import '../config/app_config.dart';
 import '../models/calendar_entry.dart';
 import '../models/family.dart';
 import '../models/goal.dart';
+import '../models/goal_contribution.dart';
 import '../models/transaction.dart';
 import '../models/wallet.dart';
 import 'structs/join_request.dart';
@@ -426,6 +427,58 @@ class ApiService {
       );
     }
     return Goal.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  /// Liefert alle Einzahlungen zu einem Sparziel.
+  Future<List<GoalContribution>> getContributionsForGoal(String goalId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/goal-contributions/goal/$goalId'),
+      headers: await _authorizationHeaders(),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Fehler beim Laden der Einzahlungen (Status: ${response.statusCode})',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw const FormatException('Unexpected contribution data from server');
+    }
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map(GoalContribution.fromJson)
+        .toList();
+  }
+
+  /// Zahlt [amountCents] von User [userId] in das Sparziel [goalId] ein.
+  Future<GoalContribution> createGoalContribution({
+    required String goalId,
+    required int amountCents,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/goal-contributions'),
+      headers: await _authorizationHeaders(includeJsonContentType: true),
+      body: jsonEncode({
+        'goalId': goalId,
+        'amountCents': amountCents,
+      }),
+    );
+    if (response.statusCode == 401) {
+      await logout();
+      throw SessionExpiredException();
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'Fehler beim Einzahlen ins Ziel (Status: ${response.statusCode})',
+      );
+    }
+    return GoalContribution.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
   }
 
   /// Liefert User-ID -> Name (Vorname, sonst Anzeigename) aller Familienmitglieder.
