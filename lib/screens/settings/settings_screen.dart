@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:informatik_projekt/screens/settings/profile/profile_screen.dart';
 import 'package:informatik_projekt/screens/settings/family/invitation_screen.dart';
 import 'package:informatik_projekt/widgets/logout_button.dart';
 
@@ -15,10 +16,7 @@ class SettingsScreen extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Einstellungen',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 20),
@@ -27,7 +25,12 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'Profil',
             subtitle: 'Kontodetails verwalten',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
           ),
           _buildSettingsTile(
             icon: Icons.notifications_none,
@@ -38,12 +41,17 @@ class SettingsScreen extends StatelessWidget {
           const Divider(),
           _buildSectionTitle('Familie'),
           _buildSettingsTile(
-            icon: Icons.person_add_alt, 
-            title: 'Familienmitglied einladen', 
-            subtitle: 'Erweitere deine Armee', 
+            icon: Icons.person_add_alt,
+            title: 'Familienmitglied einladen',
+            subtitle: 'Erweitere deine Armee',
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const InvitationScreen()));
-            }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const InvitationScreen(),
+                ),
+              );
+            },
           ),
           const Divider(),
           _buildSectionTitle('Anwendung'),
@@ -62,7 +70,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 40),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: LogoutButton()
+            child: LogoutButton(),
           ),
           const SizedBox(height: 40),
         ],
@@ -95,10 +103,7 @@ class SettingsScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: ListTile(
         leading: Icon(icon, color: Colors.indigo),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right, size: 20),
         onTap: onTap,

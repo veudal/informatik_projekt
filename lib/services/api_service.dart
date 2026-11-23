@@ -481,6 +481,21 @@ class ApiService {
     );
   }
 
+  Future<Map<String, dynamic>> getMe() async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/users/me'),
+    headers: await _authorizationHeaders(),
+  );
+  if (response.statusCode == 401) {
+    await logout();
+    throw SessionExpiredException();
+  }
+  if (response.statusCode != 200) {
+    throw Exception('Fehler beim Laden des Profils (Status: ${response.statusCode})');
+  }
+  return jsonDecode(response.body) as Map<String, dynamic>;
+}
+
   /// Liefert User-ID -> Name (Vorname, sonst Anzeigename) aller Familienmitglieder.
   Future<Map<String, String>> getFamilyMemberNames(String familyId) async {
     final response = await http.get(
