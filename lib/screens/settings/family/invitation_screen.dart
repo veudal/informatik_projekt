@@ -236,7 +236,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
                     ],
                   ),
                   const Text(
-                    'Reiche den Einladungs code weiter an das Familienmitflied dass du einladen möchtest.',
+                    'Reiche den Einladungs code weiter an das Familienmitglied dass du einladen möchtest.',
                     textAlign: TextAlign.center,
                   ),
                 ],
