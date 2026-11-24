@@ -99,7 +99,7 @@ class _SplashScreenState extends State<SplashScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Bitte prüfen Sie Ihre Internetverbindung oder warten Sie, bis die Serverwartung abgeschlossen ist.',
+          'Bitte prüfe deine Internetverbindung oder warte, bis die Serverwartung abgeschlossen ist.',
           textAlign: TextAlign.center,
         ),
         duration: Duration(seconds: 4),

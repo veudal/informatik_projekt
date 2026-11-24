@@ -107,7 +107,7 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
             persist: false,
             duration: const Duration(seconds: 4),
             content: const Text(
-              'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.',
+              'Diese E-Mail ist bereits registriert. Bitte melde dich an.',
             ),
             action: SnackBarAction(
               label: 'Login',

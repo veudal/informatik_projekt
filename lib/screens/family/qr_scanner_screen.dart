@@ -345,7 +345,7 @@ class _HintColumn extends StatelessWidget {
           const SizedBox(height: 12),
         ],
         Text(
-          'Halten Sie den Familen QR code in den Rahmen',
+          'Halte den Familen QR code in den Rahmen',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.85),

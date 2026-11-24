@@ -233,6 +233,7 @@ class _CreateFamilyScreenState extends State<CreateFamilyScreen> {
                         maxLines: 3,
                       ),
                       const SizedBox(height: 32),
+                      
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
