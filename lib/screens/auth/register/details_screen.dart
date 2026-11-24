@@ -268,20 +268,10 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
               const SizedBox(height: 64),
               SizedBox(
                 width: 320,
-                height: 52,
                 child: FilledButton(
                   onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
                       ? onPressConfirm
                       : null,
-                  style: FilledButton.styleFrom(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: _radius),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
                   child: const Text('Bestätigen'),
                 ),
               ),

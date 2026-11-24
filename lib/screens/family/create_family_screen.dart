@@ -16,6 +16,8 @@ class CreateFamilyScreen extends StatefulWidget {
 }
 
 class _CreateFamilyScreenState extends State<CreateFamilyScreen> {
+  static final BorderRadius _radius = BorderRadius.circular(12);
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -233,22 +235,21 @@ class _CreateFamilyScreenState extends State<CreateFamilyScreen> {
                         maxLines: 3,
                       ),
                       const SizedBox(height: 32),
-                      
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _isSubmitting ? null : _submit,
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Create Family'),
-                        ),
+
+                      FilledButton(
+                        onPressed: _isSubmitting ? null : _submit,
+                        child: _isSubmitting
+                            ? SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimary,
+                                ),
+                              )
+                            : const Text('Create Family'),
                       ),
                     ],
                   ),

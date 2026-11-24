@@ -55,6 +55,8 @@ Future<void> _setupPushNotifications() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static final BorderRadius _radius = BorderRadius.circular(12);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -65,6 +67,23 @@ class MyApp extends StatelessWidget {
         tooltipTheme: const TooltipThemeData(waitDuration: Duration(days: 1)),
         fontFamily: GoogleFonts.getFont('Plus Jakarta Sans').fontFamily,
         // Alternative font: 'Inter'
+
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: _radius),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(borderRadius: _radius),
+        ),
       ),
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
