@@ -22,7 +22,6 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
   bool _isLoading = true;
   String? _error;
 
-  /// User-ID -> Name aller Familienmitglieder (vom Server geladen).
   Map<String, String> _memberNames = {};
 
   /// Alle Einzahlungen zu diesem Ziel (vom Server geladen).
@@ -46,9 +45,6 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     _load();
   }
 
-  // ---------------------------------------------------------------------------
-  // Daten laden (Familienmitglieder + echte Einzahlungen zum Ziel)
-  // ---------------------------------------------------------------------------
 
   Future<void> _load() async {
     setState(() {
@@ -74,10 +70,6 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
       });
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Formatierung & Berechnungen
-  // ---------------------------------------------------------------------------
 
   double get goalAmount => widget.goal.targetCents / 100;
 
@@ -109,15 +101,12 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
   int get _savedCents =>
       _contributions.fold(0, (sum, c) => sum + c.amountCents);
 
-  /// Fortschritt 0.0..1.0, berechnet aus den echten Einzahlungen
-  /// (das Backend erhöht goal.currentCents beim Einzahlen nicht).
   double get _progress {
     if (widget.goal.targetCents <= 0) return 0;
     return (_savedCents / widget.goal.targetCents).clamp(0.0, 1.0);
   }
 
-  /// Reihenfolge im Diagramm: Teilnehmer zuerst, danach alle User,
-  /// die (ohne Teilnehmer zu sein) eingezahlt haben.
+
   List<String> get _chartUsers {
     final users = <String>[];
     for (final id in widget.goal.participantIds) {
@@ -129,7 +118,6 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     return users;
   }
 
-  /// Nur User mit einem tatsächlichen Anteil erscheinen im Kreisdiagramm.
   List<String> get _pieUsers =>
       _chartUsers.where((id) => (_sumPerUser[id] ?? 0) > 0).toList();
 
@@ -138,16 +126,11 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
 
   List<String> get _pieNames => _pieUsers.map(_nameOf).toList();
 
-  /// Diagrammfarbe eines Users (grau, wenn er nicht im Diagramm ist).
   Color colorForUser(String userId) {
     final index = _pieUsers.indexOf(userId);
     if (index < 0) return Colors.grey.shade300;
     return colors[index % colors.length];
   }
-
-  // ---------------------------------------------------------------------------
-  // Dialog: Einzahlen
-  // ---------------------------------------------------------------------------
 
   void _showDepositDialog() {
     final formKey = GlobalKey<FormState>();
@@ -257,10 +240,6 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
       },
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {

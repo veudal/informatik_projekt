@@ -28,18 +28,26 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   bool _isSubmitting = false;
   final ApiService _apiService = ApiService();
 
+  static final BorderRadius _radius = BorderRadius.circular(12);
+
   _AddAccountInfoScreenState(this.email, this.password);
 
   @override
   void initState() {
     super.initState();
     displayNameController.addListener(onInputChange);
+    firstNameController.addListener(onInputChange);
+    lastNameController.addListener(onInputChange);
   }
 
   @override
   void dispose() {
     displayNameController.removeListener(onInputChange);
+    firstNameController.removeListener(onInputChange);
+    lastNameController.removeListener(onInputChange);
     displayNameController.dispose();
+    firstNameController.dispose();
+    lastNameController.dispose();
     super.dispose();
   }
 
@@ -48,11 +56,31 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   }
 
   bool isConfirmButtonEnabled() {
-    if (displayNameController.text.isNotEmpty && birthDate != null) {
+    if (displayNameController.text.isNotEmpty &&
+        firstNameController.text.isNotEmpty &&
+        lastNameController.text.isNotEmpty &&
+        birthDate != null) {
       return true;
     }
 
     return false;
+  }
+
+  double get _progress {
+    final done = [
+      firstNameController.text.isNotEmpty,
+      lastNameController.text.isNotEmpty,
+      displayNameController.text.isNotEmpty,
+      birthDate != null,
+    ].where((e) => e).length;
+    return done / 6 + 1 / 3;
+  }
+
+  InputDecoration _decoration(String hint) {
+    return InputDecoration(
+      border: OutlineInputBorder(borderRadius: _radius),
+      hintText: hint,
+    );
   }
 
   void onPressConfirm() async {
@@ -73,10 +101,10 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
       if (!result['success']) {
         if (!mounted) return;
         String errorMessage =
-            'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.';
+            'Registrierung fehlgeschlagen. Bitte versuche es erneut.';
         if (result['statusCode'] == 409) {
           errorMessage =
-              'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.';
+              'Diese E-Mail ist bereits registriert. Bitte melden dich an.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -130,9 +158,30 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back),
+        ),
+        flexibleSpace: PreferredSize(
+          preferredSize: const Size.fromHeight(5),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: _progress),
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOut,
+            builder: (context, value, _) => LinearProgressIndicator(
+              // null = indefinite animation while registering
+              value: _isSubmitting ? null : value,
+              minHeight: 5,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation(
+                Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
         ),
       ),
       body: Center(
@@ -145,7 +194,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
               const Center(
                 child: Text(
                   'Details hinzufügen',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 32),
@@ -161,10 +210,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     TextField(
                       controller: TextEditingController(text: email),
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deine E-Mail ein",
-                      ),
+                      decoration: _decoration("Gib deine E-Mail ein"),
                       enabled: false,
                     ),
                     const SizedBox(height: 24),
@@ -173,10 +219,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     TextField(
                       controller: TextEditingController(text: password),
                       obscureText: true,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib dein Passwort ein",
-                      ),
+                      decoration: _decoration("Gib dein Passwort ein"),
                       enabled: false,
                     ),
                     const SizedBox(height: 24),
@@ -184,30 +227,21 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: firstNameController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deinen Vornamen ein",
-                      ),
+                      decoration: _decoration("Gib deinen Vornamen ein"),
                     ),
                     const SizedBox(height: 24),
                     const Text('Nachname'),
                     const SizedBox(height: 8),
                     TextField(
                       controller: lastNameController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deinen Nachnamen ein",
-                      ),
+                      decoration: _decoration("Gib deinen Nachnamen ein"),
                     ),
                     const SizedBox(height: 24),
                     const Text('Anzeigename'),
                     const SizedBox(height: 8),
                     TextField(
                       controller: displayNameController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deinen Anzeigenamen ein",
-                      ),
+                      decoration: _decoration("Gib deinen Anzeigenamen ein"),
                     ),
                     const SizedBox(height: 24),
                     const Text('Geburtsdatum'),
@@ -220,7 +254,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                             color: isFocused ? Colors.blue : Colors.grey,
                             width: isFocused ? 2.0 : 1.0,
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: _radius,
                         );
                       },
                       onChanged: (DateTime? dateTime) {
@@ -231,12 +265,25 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
-                    ? onPressConfirm
-                    : null,
-                child: const Text('Bestätigen'),
+              const SizedBox(height: 64),
+              SizedBox(
+                width: 320,
+                height: 52,
+                child: FilledButton(
+                  onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
+                      ? onPressConfirm
+                      : null,
+                  style: FilledButton.styleFrom(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: _radius),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  child: const Text('Bestätigen'),
+                ),
               ),
             ],
           ),

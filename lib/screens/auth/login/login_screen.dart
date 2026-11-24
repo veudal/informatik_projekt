@@ -42,6 +42,15 @@ class _LoginScreenState extends State<LoginScreen> {
         passwordController.text.isNotEmpty;
   }
 
+  static final BorderRadius _radius = BorderRadius.circular(12);
+
+  InputDecoration _decoration(String hint) {
+    return InputDecoration(
+      border: OutlineInputBorder(borderRadius: _radius),
+      hintText: hint,
+    );
+  }
+
   void onPressConfirm() async {
     setState(() {
       _isSubmitting = true;
@@ -90,17 +99,17 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 4),
                   const Center(
                     child: Text(
                       'Anmelden',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 34,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 64),
                   SizedBox(
                     width: 320,
                     child: Column(
@@ -112,10 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: emailController,
                           keyboardType: TextInputType.emailAddress,
                           enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Gib deine E-Mail ein",
-                          ),
+                          decoration: _decoration("Gib deine E-Mail ein"),
                         ),
                         const SizedBox(height: 24),
                         const Text('Passwort'),
@@ -124,32 +130,48 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: passwordController,
                           obscureText: true,
                           enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Gib dein Passwort ein",
-                          ),
+                          decoration: _decoration("Gib dein Passwort ein"),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 50),
-                  ElevatedButton(
-                    onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
-                        ? onPressConfirm
-                        : null,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Weiter'),
+                  const SizedBox(height: 64),
+                  SizedBox(
+                    width: 320,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
+                          ? onPressConfirm
+                          : null,
+                      style: FilledButton.styleFrom(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: _radius),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            )
+                          : const Text('Weiter'),
+                    ),
                   ),
                   const SizedBox(height: 64),
                   RichText(
                     text: TextSpan(
                       children: [
-                        const TextSpan(text: 'Kein Konto?  ', style: TextStyle(color: Colors.black)),
+                        const TextSpan(
+                          text: 'Kein Konto?  ',
+                          style: TextStyle(color: Colors.black),
+                        ),
                         TextSpan(
                           text: 'Erstelle eins!',
                           style: TextStyle(color: Colors.blue),

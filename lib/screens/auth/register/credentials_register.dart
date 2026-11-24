@@ -11,11 +11,14 @@ class RegisterAccountScreen extends StatefulWidget {
 }
 
 class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
+  static final BorderRadius _radius = BorderRadius.circular(12);
+
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
   String? _emailError;
+  bool _emailTouched = false;
   final ApiService _apiService = ApiService();
 
   bool _isSubmitting = false;
@@ -41,11 +44,17 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
 
   void onInputChange() {
     if (emailController.text.isNotEmpty) {
-      setState(() {
-        _emailError = null;
-      });
+      _emailError = null;
     }
     setState(() {});
+  }
+
+  String? get _emailFieldError {
+    if (_emailError != null) return _emailError;
+    if (_emailTouched && emailController.text.isEmpty) {
+      return 'Bitte gib deine E-Mail ein';
+    }
+    return null;
   }
 
   bool isConfirmButtonEnabled() {
@@ -58,6 +67,22 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
   bool get passwordsDoNotMatch {
     return confirmPasswordController.text.isNotEmpty &&
         passwordController.text != confirmPasswordController.text;
+  }
+
+  InputDecoration _decoration(String hint, {String? errorText}) {
+    return InputDecoration(
+      border: OutlineInputBorder(borderRadius: _radius),
+      errorBorder: OutlineInputBorder(
+        borderRadius: _radius,
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: _radius,
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+      hintText: hint,
+      errorText: errorText,
+    );
   }
 
   void onPressConfirm() async {
@@ -79,7 +104,11 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red,
-            content: Text('${_emailError!}. Bitte melden Sie sich an.'),
+            persist: false,
+            duration: const Duration(seconds: 4),
+            content: const Text(
+              'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.',
+            ),
             action: SnackBarAction(
               label: 'Login',
               textColor: Colors.white,
@@ -138,6 +167,12 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back),
         ),
+        flexibleSpace: _isSubmitting
+            ? const Align(
+                alignment: Alignment.topCenter,
+                child: LinearProgressIndicator(minHeight: 5),
+              )
+            : null,
       ),
       body: Stack(
         children: [
@@ -147,17 +182,17 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 4),
                   const Center(
                     child: Text(
                       'Konto Erstellen',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 34,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 128),
                   SizedBox(
                     width: 320,
                     child: Column(
@@ -165,14 +200,19 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                       children: [
                         const Text('Email'),
                         const SizedBox(height: 8),
-                        TextField(
-                          controller: emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          enabled: !_isSubmitting,
-                          decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
-                            hintText: "Gib deine E-Mail ein",
-                            errorText: _emailError,
+                        Focus(
+                          onFocusChange: (hasFocus) {
+                            if (!hasFocus) setState(() => _emailTouched = true);
+                          },
+                          child: TextField(
+                            controller: emailController,
+                            autofocus: true,
+                            keyboardType: TextInputType.emailAddress,
+                            enabled: !_isSubmitting,
+                            decoration: _decoration(
+                              "Gib deine E-Mail ein",
+                              errorText: _emailFieldError,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -182,10 +222,7 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                           controller: passwordController,
                           obscureText: true,
                           enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Gib dein Passwort ein",
-                          ),
+                          decoration: _decoration("Gib dein Passwort ein"),
                         ),
                         const SizedBox(height: 24),
                         const Text('Passwort bestätigen'),
@@ -194,46 +231,49 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                           controller: confirmPasswordController,
                           obscureText: true,
                           enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Wiederhole dein Passwort",
+                          decoration: _decoration(
+                            "Wiederhole dein Passwort",
+                            errorText: passwordsDoNotMatch
+                                ? 'Passwörter stimmen nicht überein'
+                                : null,
                           ),
                         ),
-                        if (passwordsDoNotMatch)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Passwörter stimmen nicht überein',
-                              style: TextStyle(color: Colors.red, fontSize: 12),
-                            ),
-                          ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
-                        ? onPressConfirm
-                        : null,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Weiter ->'),
+                  const SizedBox(height: 64),
+                  SizedBox(
+                    width: 320,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
+                          ? onPressConfirm
+                          : null,
+                      style: FilledButton.styleFrom(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: _radius),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            )
+                          : const Text('Weiter'),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          if (_isSubmitting)
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: LinearProgressIndicator(minHeight: 3),
-            ),
         ],
       ),
     );
