@@ -135,110 +135,113 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
           icon: Icon(Icons.arrow_back),
         ),
       ),
+
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize
-                .min, // prevent column from taking up all available space
-            children: [
-              const Center(
-                child: Text(
-                  'Details hinzufügen',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize
+                  .min, // prevent column from taking up all available space
+              children: [
+                const Center(
+                  child: Text(
+                    'Details hinzufügen',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: 320,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment
-                      .start, // align widgets to left side of column
-                  children: [
-                    const SizedBox(height: 24),
-                    const Text('E-Mail'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: TextEditingController(text: email),
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deine E-Mail ein",
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: 320,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment
+                        .start, // align widgets to left side of column
+                    children: [
+                      const SizedBox(height: 24),
+                      const Text('E-Mail'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: TextEditingController(text: email),
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Gib deine E-Mail ein",
+                        ),
+                        enabled: false,
                       ),
-                      enabled: false,
-                    ),
-                    const SizedBox(height: 24),
-                    const Text('Passwort'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: TextEditingController(text: password),
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib dein Passwort ein",
+                      const SizedBox(height: 24),
+                      const Text('Passwort'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: TextEditingController(text: password),
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Gib dein Passwort ein",
+                        ),
+                        enabled: false,
                       ),
-                      enabled: false,
-                    ),
-                    const SizedBox(height: 24),
-                    const Text('Vorname'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: firstNameController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deinen Vornamen ein",
+                      const SizedBox(height: 24),
+                      const Text('Vorname'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: firstNameController,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Gib deinen Vornamen ein",
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text('Nachname'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: lastNameController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deinen Nachnamen ein",
+                      const SizedBox(height: 24),
+                      const Text('Nachname'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: lastNameController,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Gib deinen Nachnamen ein",
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text('Anzeigename'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: displayNameController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Gib deinen Anzeigenamen ein",
+                      const SizedBox(height: 24),
+                      const Text('Anzeigename'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: displayNameController,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Gib deinen Anzeigenamen ein",
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text('Geburtsdatum'),
-                    const SizedBox(height: 8),
-                    BirthPicker(
-                      locale: 'de_DE',
-                      decorationBuilder: (bool isFocused) {
-                        return BoxDecoration(
-                          border: Border.all(
-                            color: isFocused ? Colors.blue : Colors.grey,
-                            width: isFocused ? 2.0 : 1.0,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        );
-                      },
-                      onChanged: (DateTime? dateTime) {
-                        birthDate = dateTime;
-                        onInputChange();
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 24),
+                      const Text('Geburtsdatum'),
+                      const SizedBox(height: 8),
+                      BirthPicker(
+                        locale: 'de_DE',
+                        decorationBuilder: (bool isFocused) {
+                          return BoxDecoration(
+                            border: Border.all(
+                              color: isFocused ? Colors.blue : Colors.grey,
+                              width: isFocused ? 2.0 : 1.0,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          );
+                        },
+                        onChanged: (DateTime? dateTime) {
+                          birthDate = dateTime;
+                          onInputChange();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
-                    ? onPressConfirm
-                    : null,
-                child: const Text('Bestätigen'),
-              ),
-            ],
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
+                      ? onPressConfirm
+                      : null,
+                  child: const Text('Bestätigen'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -85,89 +85,94 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         children: [
           Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 20),
-                  const Center(
-                    child: Text(
-                      'Anmelden',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 20),
+                    const Center(
+                      child: Text(
+                        'Anmelden',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: 320,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('E-Mail'),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Gib deine E-Mail ein",
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: 320,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('E-Mail'),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            enabled: !_isSubmitting,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: "Gib deine E-Mail ein",
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text('Passwort'),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: passwordController,
-                          obscureText: true,
-                          enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Gib dein Passwort ein",
+                          const SizedBox(height: 24),
+                          const Text('Passwort'),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: passwordController,
+                            obscureText: true,
+                            enabled: !_isSubmitting,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: "Gib dein Passwort ein",
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 50),
-                  ElevatedButton(
-                    onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
-                        ? onPressConfirm
-                        : null,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Weiter'),
-                  ),
-                  const SizedBox(height: 64),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        const TextSpan(text: 'Kein Konto?  ', style: TextStyle(color: Colors.black)),
-                        TextSpan(
-                          text: 'Erstelle eins!',
-                          style: TextStyle(color: Colors.blue),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const RegisterAccountScreen(),
-                                ),
-                              );
-                            },
-                        ),
-                      ],
+                    const SizedBox(height: 50),
+                    ElevatedButton(
+                      onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
+                          ? onPressConfirm
+                          : null,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Weiter'),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 64),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          const TextSpan(
+                            text: 'Kein Konto?  ',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          TextSpan(
+                            text: 'Erstelle eins!',
+                            style: TextStyle(color: Colors.blue),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const RegisterAccountScreen(),
+                                  ),
+                                );
+                              },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

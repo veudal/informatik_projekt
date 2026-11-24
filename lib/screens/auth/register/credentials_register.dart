@@ -142,88 +142,93 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
       body: Stack(
         children: [
           Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 20),
-                  const Center(
-                    child: Text(
-                      'Konto Erstellen',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 20),
+                    const Center(
+                      child: Text(
+                        'Konto Erstellen',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: 320,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Email'),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          enabled: !_isSubmitting,
-                          decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
-                            hintText: "Gib deine E-Mail ein",
-                            errorText: _emailError,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text('Passwort'),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: passwordController,
-                          obscureText: true,
-                          enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Gib dein Passwort ein",
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text('Passwort bestätigen'),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: confirmPasswordController,
-                          obscureText: true,
-                          enabled: !_isSubmitting,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Wiederhole dein Passwort",
-                          ),
-                        ),
-                        if (passwordsDoNotMatch)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Passwörter stimmen nicht überein',
-                              style: TextStyle(color: Colors.red, fontSize: 12),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: 320,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Email'),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            enabled: !_isSubmitting,
+                            decoration: InputDecoration(
+                              border: const OutlineInputBorder(),
+                              hintText: "Gib deine E-Mail ein",
+                              errorText: _emailError,
                             ),
                           ),
-                      ],
+                          const SizedBox(height: 24),
+                          const Text('Passwort'),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: passwordController,
+                            obscureText: true,
+                            enabled: !_isSubmitting,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: "Gib dein Passwort ein",
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text('Passwort bestätigen'),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: confirmPasswordController,
+                            obscureText: true,
+                            enabled: !_isSubmitting,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: "Wiederhole dein Passwort",
+                            ),
+                          ),
+                          if (passwordsDoNotMatch)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                'Passwörter stimmen nicht überein',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
-                        ? onPressConfirm
-                        : null,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Weiter ->'),
-                  ),
-                ],
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
+                          ? onPressConfirm
+                          : null,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Weiter ->'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
