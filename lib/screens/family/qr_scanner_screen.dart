@@ -316,6 +316,12 @@ class _ScannerErrorView extends StatelessWidget {
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Try again'),
               ),
+              const SizedBox(height: 20),
+              FilledButton.tonalIcon(
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Go back'),
+              ),
             ],
           ),
         ),
