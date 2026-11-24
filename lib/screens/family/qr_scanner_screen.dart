@@ -319,7 +319,7 @@ class _ScannerErrorView extends StatelessWidget {
               const SizedBox(height: 20),
               FilledButton.tonalIcon(
                 onPressed: () => Navigator.maybePop(context),
-                icon: const Icon(Icons.arrow_back),
+                icon: const CloseButtonIcon(),
                 label: const Text('Go back'),
               ),
             ],
