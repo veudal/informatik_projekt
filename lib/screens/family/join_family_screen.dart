@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:informatik_projekt/screens/main_navigation.dart';
 import 'package:informatik_projekt/services/api_service.dart';
+import 'package:informatik_projekt/services/structs/invitation_status.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:informatik_projekt/screens/family/qr_scanner_screen.dart';
 
@@ -84,19 +85,17 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
 
     if (mounted) {
       _isPolling = true;
-      poll(id);
+      _poll(id);
     }
   }
 
-  void poll(String id) async {
+  void _poll(String id) async {
     while (_isPolling && mounted) {
-      String status = '';
+      late InvitationStatus status;
 
       try {
         status = await _apiService.pollStatus(id);
       } on Exception catch (e) {
-        _isPolling = false;
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -106,11 +105,13 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
             ),
           );
         }
+
+        break;
       }
 
       if (!_isPolling || !mounted) break;
 
-      if (status == 'accepted') {
+      if (status == InvitationStatus.accepted) {
         _isPolling = false;
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Anfrage angenommen')));
@@ -119,18 +120,26 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
           MaterialPageRoute(builder: (_) => MainNavigation()),
           (_) => false,
         );
-      } else if (status == 'denied') {
-        _isPolling = false;
+      } else if (status == InvitationStatus.denied) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Anfrage abgelehnt')));
 
-        setState(() {
-          _showLoadingButton = false;
-        });
-      } else if (status == 'pending') {
+        break;
+      } else if (status == InvitationStatus.pending) {
         await Future.delayed(Duration(milliseconds: 500));
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Anfrage wurde entwertet.')));
+
+        break;
       }
     }
+
+    _isPolling = false;
+
+    setState(() {
+      _showLoadingButton = false;
+    });
   }
 
   @override

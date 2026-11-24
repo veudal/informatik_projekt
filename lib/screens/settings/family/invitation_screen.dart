@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:informatik_projekt/services/api_service.dart';
-import 'package:informatik_projekt/services/structs/join_request.dart';
+import 'package:informatik_projekt/services/structs/invitation_response.dart';
 import 'package:informatik_projekt/widgets/colored_button.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:uuid/uuid.dart';
 
 class InvitationScreen extends StatefulWidget {
   const InvitationScreen({super.key});
@@ -16,6 +15,7 @@ class InvitationScreen extends StatefulWidget {
 }
 
 class _InvitationScreenState extends State<InvitationScreen> {
+  static final double _modalDefaultCornerRadius = 20.0;
   final ApiService _apiService = ApiService();
   late Future<String> _invitationCode;
   bool _isPolling = false;
@@ -29,56 +29,92 @@ class _InvitationScreenState extends State<InvitationScreen> {
   @override
   void dispose() {
     _isPolling = false;
+
+    // notify server that client doesn't use this code anymore
+    _invitationCode.then((id) {
+      unawaited(_apiService.respondRedeemer(id, InvitationResponse.expire));
+    });
+
     super.dispose();
   }
 
   void poll(String id) async {
     while (_isPolling && mounted) {
-      JoinRequest? joinRequest;
+      String? redeemerName;
 
       try {
-        joinRequest = await _apiService.pollJoinRequest(id);
+        redeemerName = await _apiService.pollJoinRequest(id);
       } on Exception catch (e) {
-        _isPolling = false;
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Ein unerwarteter Fehler ist aufgetreten. Generiere um sicher zu gehen einen neuen Einladungscode. Fehler: $e',
+                'Ein unerwarteter Fehler ist aufgetreten. Generiere einen neuen Einladungscode. Fehler: $e',
               ),
             ),
           );
         }
+
+        break;
       }
 
-      if (!_isPolling || !mounted) break;
+      if (!_isPolling || !mounted) {
+        break;
+      }
 
-      if (joinRequest != null) {
-        _isPolling = false;
-        _onReceiveRequest(id, joinRequest.displayName, joinRequest.id);
+      if (redeemerName != null) {
+        // code was redeemed
+        InvitationResponse response;
+
+        try {
+          response = (await _showRequestPopup(redeemerName)) ?? InvitationResponse.expire;
+
+          await _apiService.respondRedeemer(id, response);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  response == InvitationResponse.accept
+                      ? '$redeemerName wurde in die Familie aufgenommen.'
+                      : '$redeemerName wurde abgelehnt.',
+                ),
+              ),
+            );
+          }
+        } on Exception catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Ein unerwarteter Fehler ist aufgetreten. Möglicherweise konnte die eingeladene Person nicht in die Familie aufgenommen werden. Fehler: $e',
+                ),
+              ),
+            );
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _invitationCode = Future.delayed(Duration(milliseconds: 500)).then((_) => _apiService.createInvitation());
+          });
+        }
+
+        break;
       } else {
         await Future.delayed(Duration(milliseconds: 750));
       }
     }
+
+    _isPolling = false;
   }
 
-  void _onReceiveRequest(
-    String invitationId,
-    String displayName,
-    UuidValue uuid,
-  ) {
-    if (!mounted) {
-      return;
-    }
-
-    double defaultCornerRadius = 20.0;
-
-    showModalBottomSheet(
+  Future<InvitationResponse?> _showRequestPopup(String displayName) async {
+    return showModalBottomSheet<InvitationResponse>(
       context: context,
       builder: (context) {
         return Padding(
-          padding: EdgeInsets.all(defaultCornerRadius * 0.5),
+          padding: EdgeInsets.all(_modalDefaultCornerRadius * 0.5),
           child: SizedBox(
             height: 300,
             child: Column(
@@ -87,7 +123,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
                   alignment: AlignmentGeometry.centerRight,
                   child: CloseButton(
                     onPressed: () {
-                      _onDecide(invitationId, false, displayName);
+                      Navigator.maybePop(context, InvitationResponse.expire);
                     },
                   ),
                 ),
@@ -111,14 +147,14 @@ class _InvitationScreenState extends State<InvitationScreen> {
                     ColoredButton(
                       color: Colors.red,
                       onPressed: () {
-                        _onDecide(invitationId, false, displayName);
+                        Navigator.maybePop(context, InvitationResponse.deny);
                       },
                       child: const Text('Ablehnen'),
                     ),
                     ColoredButton(
                       color: Colors.green,
                       onPressed: () {
-                        _onDecide(invitationId, true, displayName);
+                        Navigator.maybePop(context, InvitationResponse.accept);
                       },
                       child: const Text('Annehmen'),
                     ),
@@ -132,42 +168,6 @@ class _InvitationScreenState extends State<InvitationScreen> {
     );
   }
 
-  void _onDecide(String invitationId, bool accept, String displayName) async {
-    try {
-      await _apiService.respondRedeemer(invitationId, accept);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(accept ? '$displayName wurde in die Familie aufgenommen.' : '$displayName wurde abgelehnt.'),
-          ),
-        );
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Ein unerwarteter Fehler ist aufgetreten. Möglicherweise konnte die eingeladene Person nicht in die Familie aufgenommen werden. Fehler: $e',
-            ),
-          ),
-        );
-      }
-    }
-
-    if (mounted) {
-      // pop modal bottom sheet
-      Navigator.maybePop(context);
-
-      if (mounted) {
-        // check if for some reason this screen was popped accidentally
-        setState(() {
-          _invitationCode = _apiService.createInvitation();
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -177,7 +177,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
-              child: Text('Ein unerwarteter Fehler ist aufgetreten.'),
+              child: Text('Ein Fehler ist aufgetreten. Der Einleidungs code konnte nicht erstellt werden.'),
             );
           } else if (snapshot.hasData) {
             String id = snapshot.data ?? '';
@@ -217,9 +217,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
                       ),
                       IconButton.filled(
                         onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(text: id),
-                          );
+                          await Clipboard.setData(ClipboardData(text: id));
                           // copied successfully
                         },
                         icon: const Icon(Icons.content_copy),
@@ -236,7 +234,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
                     ],
                   ),
                   const Text(
-                    'Reiche den Einladungs code weiter an das Familienmitflied dass du einladen möchtest.',
+                    'Reiche den Einladungs code weiter an das Familienmitglied dass du einladen möchtest.',
                     textAlign: TextAlign.center,
                   ),
                 ],

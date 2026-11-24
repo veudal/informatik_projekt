@@ -3,14 +3,14 @@ import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:uuid/uuid.dart';
+import 'package:informatik_projekt/services/structs/invitation_response.dart';
+import 'package:informatik_projekt/services/structs/invitation_status.dart';
 
 import '../config/app_config.dart';
 import '../models/calendar_entry.dart';
 import '../models/family.dart';
 import '../models/transaction.dart';
 import '../models/wallet.dart';
-import 'structs/join_request.dart';
 
 class ApiService {
   final storage = const FlutterSecureStorage();
@@ -519,7 +519,7 @@ class ApiService {
         });
   }
 
-  Future<JoinRequest?> pollJoinRequest(String id) {
+  Future<String?> pollJoinRequest(String id) {
     return storage
         .read(key: AppConfig.storageTokenKey)
         .then((token) {
@@ -532,14 +532,14 @@ class ApiService {
           if (response.statusCode == HttpStatus.noContent) {
             return null;
           } else if (response.statusCode == HttpStatus.ok) {
-            return JoinRequest.fromJson(jsonDecode(response.body));
+            return jsonDecode(response.body)['display_name'] as String;
           } else {
             throw Exception('HTTP Error ${response.statusCode}');
           }
         });
   }
 
-  Future<void> respondRedeemer(String id, bool accept) {
+  Future<void> respondRedeemer(String id, InvitationResponse response) {
     return storage
         .read(key: AppConfig.storageTokenKey)
         .then((token) {
@@ -549,7 +549,7 @@ class ApiService {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: jsonEncode({'accept': accept}),
+            body: jsonEncode({'response': response.name.toUpperCase()}),
           );
         })
         .then((response) {
@@ -578,7 +578,7 @@ class ApiService {
         });
   }
 
-  Future<String> pollStatus(String id) {
+  Future<InvitationStatus> pollStatus(String id) {
     return storage
         .read(key: AppConfig.storageTokenKey)
         .then((token) {
@@ -591,13 +591,9 @@ class ApiService {
           if (response.statusCode == HttpStatus.ok) {
             String status = jsonDecode(response.body)['status'] as String;
 
-            if (status == 'pending' ||
-                status == 'accepted' ||
-                status == 'denied') {
-              return status;
-            }
-
-            throw Exception('Unknown status reported: $status');
+            return InvitationStatus.fromString(status) ?? InvitationStatus.invalidated;
+          } else if (response.statusCode == HttpStatus.badRequest) {
+            throw Exception('The Request may be expired or already used by another user.');
           } else {
             throw Exception('HTTP Error ${response.statusCode}');
           }
