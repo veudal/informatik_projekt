@@ -248,6 +248,11 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                       onPressed: (isConfirmButtonEnabled() && !_isSubmitting)
                           ? onPressConfirm
                           : null,
+                      style: FilledButton.styleFrom(
+                        disabledBackgroundColor: _isSubmitting
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
                       child: _isSubmitting
                           ? SizedBox(
                               height: 20,
@@ -257,7 +262,15 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
-                          : const Text('Weiter'),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Text('Weiter'),
+                                SizedBox(width: 8),
+                                Icon(Icons.arrow_forward),
+                              ],
+                            ),
                     ),
                   ),
                 ],

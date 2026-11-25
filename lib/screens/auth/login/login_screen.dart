@@ -149,9 +149,18 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 color: Theme.of(context).colorScheme.onPrimary,
+                                
                               ),
                             )
-                          : const Text('Weiter'),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Text('Weiter'),
+                                SizedBox(width: 8),
+                                Icon(Icons.arrow_forward),
+                              ],
+                            ),
                     ),
                   ),
                   const SizedBox(height: 64),
