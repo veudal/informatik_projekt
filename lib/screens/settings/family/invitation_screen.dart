@@ -67,7 +67,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
         InvitationResponse response;
 
         try {
-          response = (await _showRequestPopup(redeemerName)) ?? InvitationResponse.expire;
+          response =
+              (await _showRequestPopup(redeemerName)) ??
+              InvitationResponse.expire;
 
           await _apiService.respondRedeemer(id, response);
 
@@ -96,7 +98,8 @@ class _InvitationScreenState extends State<InvitationScreen> {
 
         if (mounted) {
           setState(() {
-            _invitationCode = Future.delayed(Duration(milliseconds: 500)).then((_) => _apiService.createInvitation());
+            _invitationCode = Future.delayed(Duration(milliseconds: 500))
+                .then((_) => _apiService.createInvitation());
           });
         }
 
@@ -175,74 +178,83 @@ class _InvitationScreenState extends State<InvitationScreen> {
       body: FutureBuilder(
         future: _invitationCode,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Ein Fehler ist aufgetreten. Der Einleidungs code konnte nicht erstellt werden.'),
-            );
-          } else if (snapshot.hasData) {
-            String id = snapshot.data ?? '';
+          if (snapshot.connectionState == ConnectionState.done) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Ein Fehler ist aufgetreten. Der Einleidungs code konnte nicht erstellt werden.',
+                ),
+              );
+            } else if (snapshot.hasData) {
+              String id = snapshot.data ?? '';
 
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              await Future.delayed(Duration(milliseconds: 1000));
-              if (mounted) {
-                _isPolling = true;
-                poll(id);
-              }
-            });
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                await Future.delayed(Duration(milliseconds: 1000));
+                if (mounted) {
+                  _isPolling = true;
+                  poll(id);
+                }
+              });
 
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                spacing: 24,
-                children: [
-                  QrImageView(
-                    data: id,
-                    version: QrVersions.auto,
-                    size: 280,
-                    backgroundColor: Colors.white,
-                    errorStateBuilder: (context, error) => Text(
-                      'Der QR code konnte nicht generiert werden :$error',
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    spacing: 14,
-                    children: [
-                      SelectableText(
-                        id,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24.0,
-                        ),
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    QrImageView(
+                      data: id,
+                      version: QrVersions.auto,
+                      size: 280,
+                      backgroundColor: Colors.transparent,
+                      errorStateBuilder: (context, error) => Text(
+                        'Der QR code konnte nicht generiert werden :$error',
                       ),
-                      IconButton.filled(
-                        onPressed: () async {
-                          await Clipboard.setData(ClipboardData(text: id));
-                          // copied successfully
-                        },
-                        icon: const Icon(Icons.content_copy),
-                        tooltip: 'In die Zwischenablage kopieren',
-                        style: IconButton.styleFrom(
-                          fixedSize: const Size(24, 24),
-                          padding: EdgeInsets.all(0),
-                          iconSize: 20,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
+                    ),
+                    SizedBox(
+                      height: 24,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: 14,
+                      children: [
+                        SelectableText(
+                          id,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24.0,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const Text(
-                    'Reiche den Einladungs code weiter an das Familienmitglied dass du einladen möchtest.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          } else {
-            return Center(child: CircularProgressIndicator());
+                        IconButton.filled(
+                          onPressed: () async {
+                            await Clipboard.setData(ClipboardData(text: id));
+                            // copied successfully
+                          },
+                          icon: const Icon(Icons.content_copy),
+                          tooltip: 'In die Zwischenablage kopieren',
+                          style: IconButton.styleFrom(
+                            fixedSize: const Size(24, 24),
+                            padding: EdgeInsets.all(0),
+                            iconSize: 20,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(
+                      height: 56,
+                    ),
+                    const Text(
+                      'Reiche den Einladungs code weiter an das Familienmitglied dass du einladen möchtest.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            }
           }
+
+          return Center(child: CircularProgressIndicator());
         },
       ),
     );
