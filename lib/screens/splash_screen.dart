@@ -13,115 +13,117 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
+enum _Destination { login, setup, mainNavigation }
+
 class _SplashScreenState extends State<SplashScreen> {
   final ApiService _apiService = ApiService();
-  Timer? _retryTimer;
-  DateTime? _firstErrorTime;
-  bool _snackbarShowing = false;
+  late Future<_Destination> destinationFuture;
 
   @override
   void initState() {
     super.initState();
-    _determineDestination();
+    destinationFuture = _determineDestination();
   }
 
-  Future<void> _determineDestination() async {
-    // 1. Check for valid authentication session (Reads from secure storage, no API call)
+  Future<_Destination> _determineDestination() async {
     final bool authenticated = await _apiService.isAuthenticated();
 
     if (!authenticated) {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-      return;
+      return _Destination.login;
     }
 
-    // 2. Check if user belongs to any family
     try {
       final families = await _apiService.getFamily();
 
-      // Reset error tracking on success
-      _firstErrorTime = null;
-      _snackbarShowing = false;
-      _retryTimer?.cancel();
-
-      if (mounted) {
-        if (families == null) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const SetupScreen()),
-          );
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MainNavigation()),
-          );
-        }
+      if (families == null) {
+        return _Destination.setup;
+      } else {
+        return _Destination.mainNavigation;
       }
     } on SessionExpiredException {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
+      return _Destination.login;
     } catch (e) {
-      print('splash error: $e');
-      // Server or Network Error
-      _handleNetworkError();
+      rethrow;
     }
-  }
-
-  void _handleNetworkError() {
-    final now = DateTime.now();
-    if (_firstErrorTime == null) {
-      _firstErrorTime = now;
-    }
-
-    // Show snackbar after 5 seconds of continuous errors
-    if (now.difference(_firstErrorTime!) >= const Duration(seconds: 5) &&
-        !_snackbarShowing) {
-      _showErrorSnackbar();
-    }
-
-    // Retry after 3 seconds
-    _retryTimer?.cancel();
-    _retryTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        _determineDestination();
-      }
-    });
-  }
-
-  void _showErrorSnackbar() {
-    _snackbarShowing = true;
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Bitte prüfen Sie Ihre Internetverbindung oder warten Sie, bis die Serverwartung abgeschlossen ist.',
-          textAlign: TextAlign.center,
-        ),
-        duration: Duration(seconds: 4),
-      ),
-    );
-
-    // Allow snackbar to be shown again after some time if error persists
-    Future.delayed(const Duration(seconds: 8), () {
-      if (mounted) {
-        _snackbarShowing = false;
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _retryTimer?.cancel();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      body: FutureBuilder(
+        future: destinationFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done) {
+            if (snapshot.hasData) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  switch (snapshot.data) {
+                    case _Destination.login:
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      );
+                      break;
+                    case _Destination.setup:
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const SetupScreen()),
+                      );
+                      break;
+                    case _Destination.mainNavigation:
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => const MainNavigation(),
+                        ),
+                      );
+                      break;
+                    case null:
+                  }
+                }
+              });
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  spacing: 48,
+                  children: [
+                    Icon(Icons.wifi_off, size: 48),
+                    Text(
+                      'Bitte prüfen Sie Ihre Internetverbindung oder warten Sie, bis die Serverwartung abgeschlossen ist.',
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          destinationFuture = Future.delayed(
+                            Duration(milliseconds: 250),
+                          ).then((_) => _determineDestination());
+                        });
+                      },
+                      icon: const Icon(Icons.refresh, color: Colors.blueGrey),
+                      label: const Text(
+                        'Refresh',
+                        style: TextStyle(
+                          color: Colors.blueGrey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blueGrey,
+                        side: const BorderSide(color: Colors.blueGrey),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+
+          return Center(child: CircularProgressIndicator());
+        },
+      ),
+    );
   }
 }
