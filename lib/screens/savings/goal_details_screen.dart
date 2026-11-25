@@ -17,19 +17,7 @@ class GoalDetailsScreen extends StatefulWidget {
 }
 
 class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
-  final ApiService _apiService = ApiService();
-
-  bool _isLoading = true;
-  String? _error;
-
-  Map<String, String> _memberNames = {};
-
-  /// Alle Einzahlungen zu diesem Ziel (vom Server geladen).
-  List<GoalContribution> _contributions = [];
-
-  int touchedIndex = -1;
-
-  final List<Color> colors = const [
+  static const _colors = [
     Color(0xFF5EA89B),
     Color(0xFFF2855C),
     Color(0xFF8198C4),
@@ -39,12 +27,22 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     Color(0xFF9E8AD8),
   ];
 
+  final _api = ApiService();
+
+  bool _isLoading = true;
+  String? _error;
+  Map<String, String> _memberNames = {};
+  List<GoalContribution> _contributions = [];
+  int _touchedIndex = -1;
+
+  Goal get _goal => widget.goal;
+  double get _goalAmount => _goal.targetCents / 100;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
-
 
   Future<void> _load() async {
     setState(() {
@@ -53,8 +51,8 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     });
     try {
       final results = await Future.wait([
-        _apiService.getFamilyMemberNames(widget.goal.familyId),
-        _apiService.getContributionsForGoal(widget.goal.id),
+        _api.getFamilyMemberNames(_goal.familyId),
+        _api.getContributionsForGoal(_goal.id),
       ]);
       if (!mounted) return;
       setState(() {
@@ -71,24 +69,18 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     }
   }
 
-  double get goalAmount => widget.goal.targetCents / 100;
+  String _nameOf(String id) => _memberNames[id] ?? 'Unbekannt';
+  String _euro(num cents) =>
+      '${(cents / 100).toStringAsFixed(2).replaceAll('.', ',')} €';
 
-  String _nameOf(String userId) => _memberNames[userId] ?? 'Unbekannt';
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
-  String _formatEuro(double euros) =>
-      '${euros.toStringAsFixed(2).replaceAll('.', ',')} €';
-
-  String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}.'
-      '${date.month.toString().padLeft(2, '0')}.${date.year}';
-
-  int? _parseAmountCents(String input) {
-    final euroAmount = double.tryParse(input.trim().replaceAll(',', '.'));
-    if (euroAmount == null || euroAmount <= 0) return null;
-    return (euroAmount * 100).round();
+  int? _parseCents(String input) {
+    final euros = double.tryParse(input.trim().replaceAll(',', '.'));
+    return (euros == null || euros <= 0) ? null : (euros * 100).round();
   }
 
-  /// Summe der Einzahlungen pro User (in Cents).
   Map<String, int> get _sumPerUser {
     final sums = <String, int>{};
     for (final c in _contributions) {
@@ -97,162 +89,145 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     return sums;
   }
 
-  /// Insgesamt in das Ziel eingezahlter Betrag (in Cents).
-  int get _savedCents =>
-      _contributions.fold(0, (sum, c) => sum + c.amountCents);
+  int get _savedCents => _contributions.fold(0, (s, c) => s + c.amountCents);
 
-  double get _progress {
-    if (widget.goal.targetCents <= 0) return 0;
-    return (_savedCents / widget.goal.targetCents).clamp(0.0, 1.0);
+  double get _progress => _goal.targetCents <= 0
+      ? 0
+      : (_savedCents / _goal.targetCents).clamp(0.0, 1.0);
+
+  /// Teilnehmer + alle, die eingezahlt haben, die > 0 beigetragen haben.
+  List<String> get _pieUsers => {
+    ..._goal.participantIds,
+    ..._sumPerUser.keys,
+  }.where((id) => (_sumPerUser[id] ?? 0) > 0).toList();
+
+  Color _colorForUser(String id) {
+    final i = _pieUsers.indexOf(id);
+    return i < 0 ? Colors.grey.shade300 : _colors[i % _colors.length];
   }
 
-
-  List<String> get _chartUsers {
-    final users = <String>[];
-    for (final id in widget.goal.participantIds) {
-      if (!users.contains(id)) users.add(id);
-    }
-    for (final id in _sumPerUser.keys) {
-      if (!users.contains(id)) users.add(id);
-    }
-    return users;
-  }
-
-  List<String> get _pieUsers =>
-      _chartUsers.where((id) => (_sumPerUser[id] ?? 0) > 0).toList();
-
-  List<double> get _pieAmounts =>
-      _pieUsers.map((id) => (_sumPerUser[id] ?? 0) / 100).toList();
-
-  List<String> get _pieNames => _pieUsers.map(_nameOf).toList();
-
-  Color colorForUser(String userId) {
-    final index = _pieUsers.indexOf(userId);
-    if (index < 0) return Colors.grey.shade300;
-    return colors[index % colors.length];
-  }
+  void _snack(String text, Color color) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
 
   void _showDepositDialog() {
     final formKey = GlobalKey<FormState>();
-    final amountController = TextEditingController();
-    final goal = widget.goal;
+    final controller = TextEditingController();
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
-      builder: (dialogContext) {
-        bool isSubmitting = false;
-        return StatefulBuilder(
-          builder: (dialogContext, setStateDialog) {
-            Future<void> submit() async {
-              if (!(formKey.currentState?.validate() ?? false)) return;
-              final cents = _parseAmountCents(amountController.text);
-              if (cents == null) return;
-              setStateDialog(() => isSubmitting = true);
-              try {
-                await _apiService.createGoalContribution(
-                  goalId: goal.id,
-                  amountCents: cents,
-                );
-                if (!dialogContext.mounted) return;
-                Navigator.pop(dialogContext);
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${_formatEuro(cents / 100)} für "${goal.name}" eingezahlt.',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                _load();
-              } catch (e) {
-                setStateDialog(() => isSubmitting = false);
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Einzahlung fehlgeschlagen: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (_, setDialog) {
+          Future<void> submit() async {
+            if (!(formKey.currentState?.validate() ?? false)) return;
+            final cents = _parseCents(controller.text)!;
+            setDialog(() => isSubmitting = true);
+            try {
+              await _api.createGoalContribution(
+                goalId: _goal.id,
+                amountCents: cents,
+              );
+              if (!dialogContext.mounted) return;
+              Navigator.pop(dialogContext);
+              if (!mounted) return;
+              _snack(
+                '${_euro(cents)} für "${_goal.name}" eingezahlt.',
+                Colors.green,
+              );
+              _load();
+            } catch (e) {
+              setDialog(() => isSubmitting = false);
+              if (mounted) _snack('Einzahlung fehlgeschlagen: $e', Colors.red);
             }
+          }
 
-            return AlertDialog(
-              title: const Text('Einzahlen'),
-              content: Form(
+          return AlertDialog(
+            actionsOverflowAlignment: OverflowBarAlignment.center,
+            titlePadding: const EdgeInsets.fromLTRB(28, 28, 28, 8),
+            contentPadding: const EdgeInsets.fromLTRB(28, 16, 28, 8),
+            actionsPadding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
+            actionsOverflowButtonSpacing: 2,
+            title: const Text('Einzahlen'),
+            content: SizedBox(
+              width: 400,
+              child: Form(
                 key: formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 12),
+                    SizedBox(height: 16),
                     TextFormField(
-                      controller: amountController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      controller: controller,
+                      onChanged: (_) => setDialog(() {}),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Betrag (€)',
-                        hintText: 'z. B. 10,50',
+                        hintText: 'z. B. 2,50',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) =>
-                          _parseAmountCents(value ?? '') == null
-                              ? 'Bitte gültigen Betrag eingeben'
-                              : null,
+                      validator: (v) => _parseCents(v ?? '') == null
+                          ? 'Bitte gültigen Betrag eingeben'
+                          : null,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 20),
                     Wrap(
-                      spacing: 8,
+                      spacing: 10,
+                      runSpacing: 10,
                       children: [
-                        for (final quick in const [5, 10, 25, 50])
-                          ActionChip(
-                            label: Text('$quick €'),
-                            onPressed: () =>
-                                amountController.text = quick.toString(),
+                        for (final q in const [5, 10, 25, 50])
+                          ChoiceChip(
+                            label: Text('$q €'),
+                            showCheckmark: true,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            selected: controller.text == '$q',
+                            onSelected: (_) =>
+                                setDialog(() => controller.text = '$q'),
                           ),
                       ],
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () => Navigator.pop(dialogContext),
-                  child: const Text('Abbrechen'),
-                ),
-                FilledButton.icon(
-                  onPressed: isSubmitting ? null : submit,
-                  icon: isSubmitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.savings),
-                  label: const Text('Einzahlen'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+            ),
+            actions: [
+              SizedBox(height: 32),
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('Abbrechen'),
+              ),
+              SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: isSubmitting ? null : submit,
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.savings),
+                label: const Text('Einzahlen'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Zieldetails')),
-      body: _buildBody(),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Zieldetails')),
+    body: _buildBody(),
+  );
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
         child: Padding(
@@ -278,67 +253,36 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
       );
     }
 
-    final pieAmounts = _pieAmounts;
-    final pieNames = _pieNames;
-    final remaining = max(0.0, goalAmount - _savedCents / 100);
-
+    final remaining = max(0.0, _goalAmount - _savedCents / 100);
     return RefreshIndicator(
       onRefresh: _load,
-      child: SingleChildScrollView(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHeaderCard(),
-            const SizedBox(height: 16),
-            _buildChartCard(pieAmounts, pieNames, remaining),
-            const SizedBox(height: 16),
-            _buildLegendCard(remaining),
-            const SizedBox(height: 16),
-            _buildContributionsCard(),
-          ],
-        ),
+        children: [
+          _buildHeaderCard(remaining),
+          _buildChartCard(remaining),
+          _buildLegendCard(remaining),
+          _buildContributionsCard(),
+        ].expand((w) => [w, const SizedBox(height: 16)]).toList()..removeLast(),
       ),
     );
   }
 
-  Widget _statusChip() {
-    final isActive = widget.goal.status == 'active';
-    final color = isActive ? Colors.green : Colors.grey;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        isActive ? 'Aktiv' : widget.goal.status,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color.withValues(alpha: 1.0),
-        ),
-      ),
-    );
-  }
+  Widget _buildHeaderCard(double remaining) {
+    final theme = Theme.of(context);
+    final isActive = _goal.status == 'active';
+    final statusColor = isActive ? Colors.green : Colors.grey;
+    final goalReached = remaining <= 0 && _savedCents > 0;
 
-  Widget _infoChip(IconData icon, String label) {
-    return Row(
+    Widget infoChip(IconData icon, String label) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary),
+        Icon(icon, size: 14, color: theme.colorScheme.primary),
         const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(label, style: theme.textTheme.bodySmall),
       ],
     );
-  }
-
-  Widget _buildHeaderCard() {
-    final goal = widget.goal;
-    final savedEuros = _savedCents / 100;
-    final remaining = max(0.0, goalAmount - savedEuros);
-    final goalReached = remaining <= 0 && _savedCents > 0;
 
     return Card(
       child: Padding(
@@ -351,15 +295,31 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    goal.name.isEmpty ? 'Unbenanntes Ziel' : goal.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    _goal.name.isEmpty ? 'Unbenanntes Ziel' : _goal.name,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                _statusChip(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    isActive ? 'Aktiv' : _goal.status,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -367,14 +327,17 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
               spacing: 12,
               runSpacing: 4,
               children: [
-                if (goal.deadline != null)
-                  _infoChip(Icons.event, 'Bis ${_formatDate(goal.deadline!)}'),
-                _infoChip(
-                    Icons.group, '${goal.participantIds.length} Teilnehmer'),
-                if (goal.ownerId != null &&
-                    _memberNames.containsKey(goal.ownerId))
-                  _infoChip(
-                      Icons.emoji_events, 'Ziel von ${_nameOf(goal.ownerId!)}'),
+                if (_goal.deadline != null)
+                  infoChip(Icons.event, 'Bis ${_formatDate(_goal.deadline!)}'),
+                infoChip(
+                  Icons.group,
+                  '${_goal.participantIds.length} Teilnehmer',
+                ),
+                if (_memberNames.containsKey(_goal.ownerId))
+                  infoChip(
+                    Icons.emoji_events,
+                    'Ziel von ${_nameOf(_goal.ownerId!)}',
+                  ),
               ],
             ),
             const SizedBox(height: 16),
@@ -384,17 +347,17 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${_formatEuro(savedEuros)} von ${_formatEuro(goalAmount)} erreicht',
-              style: Theme.of(context).textTheme.titleMedium,
+              '${_euro(_savedCents)} von ${_euro(_goal.targetCents)} erreicht',
+              style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 2),
             Text(
               goalReached
                   ? 'Ziel erreicht! 🎉'
-                  : 'Noch ${_formatEuro(remaining)} bis zum Ziel',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: goalReached ? Colors.green : Colors.grey,
-                  ),
+                  : 'Noch ${_euro(remaining * 100)} bis zum Ziel',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: goalReached ? Colors.green : Colors.grey,
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -411,18 +374,18 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     );
   }
 
-  Widget _buildChartCard(
-      List<double> values, List<String> userNames, double remaining) {
-    final totalSaved = values.fold<double>(0, (s, e) => s + e);
-    final percent =
-        goalAmount > 0 ? (min(totalSaved, goalAmount) / goalAmount) * 100 : 0.0;
+  Widget _buildChartCard(double remaining) {
+    final theme = Theme.of(context);
+    final percent = _goalAmount > 0
+        ? min(_savedCents / 100, _goalAmount) / _goalAmount * 100
+        : 0.0;
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
         child: Column(
           children: [
-            Text('Aufteilung', style: Theme.of(context).textTheme.titleMedium),
+            Text('Aufteilung', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             SizedBox(
               height: 280,
@@ -434,22 +397,19 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                       startDegreeOffset: -90,
                       pieTouchData: PieTouchData(
                         touchCallback: (event, response) {
-                          setState(() {
-                            if (!event.isInterestedForInteractions ||
-                                response == null ||
-                                response.touchedSection == null) {
-                              touchedIndex = -1;
-                              return;
-                            }
-                            touchedIndex =
-                                response.touchedSection!.touchedSectionIndex;
-                          });
+                          setState(
+                            () => _touchedIndex =
+                                (!event.isInterestedForInteractions ||
+                                    response?.touchedSection == null)
+                                ? -1
+                                : response!.touchedSection!.touchedSectionIndex,
+                          );
                         },
                       ),
                       borderData: FlBorderData(show: false),
                       sectionsSpace: 4,
                       centerSpaceRadius: 60,
-                      sections: showingSections(values, userNames, remaining),
+                      sections: _sections(remaining),
                     ),
                   ),
                   IgnorePointer(
@@ -458,15 +418,14 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                       children: [
                         Text(
                           '${percent.toStringAsFixed(0)} %',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${_formatEuro(totalSaved)} / ${_formatEuro(goalAmount)}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          '${_euro(_savedCents)} / ${_euro(_goal.targetCents)}',
+                          style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ),
@@ -482,15 +441,15 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
 
   Widget _buildLegendCard(double remaining) {
     final sums = _sumPerUser;
-
-    // Erst die Teilnehmer des Ziels, danach die übrigen Familienmitglieder.
-    final ids = <String>[...widget.goal.participantIds];
-    final others = _memberNames.keys
-        .where((id) => !ids.contains(id))
-        .toList()
-      ..sort((a, b) =>
-          _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase()));
-    ids.addAll(others);
+    final others =
+        _memberNames.keys
+            .where((id) => !_goal.participantIds.contains(id))
+            .toList()
+          ..sort(
+            (a, b) =>
+                _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase()),
+          );
+    final theme = Theme.of(context);
 
     return Card(
       child: Padding(
@@ -500,10 +459,10 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
           children: [
             Text(
               'Beiträge der Familienmitglieder',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            for (final id in ids)
+            for (final id in [..._goal.participantIds, ...others])
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -512,7 +471,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: colorForUser(id),
+                        color: _colorForUser(id),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -526,22 +485,19 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (!widget.goal.participantIds.contains(id)) ...[
-                            const SizedBox(width: 4),
+                          if (!_goal.participantIds.contains(id))
                             Text(
-                              '· kein Teilnehmer',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.grey),
+                              ' · kein Teilnehmer',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.grey,
+                              ),
                             ),
-                          ],
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _formatEuro((sums[id] ?? 0) / 100),
+                      _euro(sums[id] ?? 0),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -551,12 +507,11 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
               const Divider(),
               Row(
                 children: [
-                  Container(
-                      width: 12, height: 12, color: Colors.grey.shade400),
+                  Container(width: 12, height: 12, color: Colors.grey.shade400),
                   const SizedBox(width: 8),
                   const Expanded(child: Text('Übrig')),
                   Text(
-                    _formatEuro(remaining),
+                    _euro(remaining * 100),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -569,12 +524,13 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
   }
 
   Widget _buildContributionsCard() {
-    final sorted = [..._contributions]..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime(0);
-        final bDate = b.createdAt ?? DateTime(0);
-        return bDate.compareTo(aDate);
-      });
     const maxEntries = 8;
+    final theme = Theme.of(context);
+    final sorted = [..._contributions]
+      ..sort(
+        (a, b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
+      );
 
     return Card(
       child: Padding(
@@ -582,17 +538,14 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Letzte Einzahlungen',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Letzte Einzahlungen', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             if (sorted.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   'Noch keine Einzahlungen. Sei der Erste!',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall,
                 ),
               )
             else
@@ -602,7 +555,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '… und ${sorted.length - maxEntries} weitere',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall,
                 ),
               ),
           ],
@@ -611,34 +564,30 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     );
   }
 
-  Widget _buildContributionTile(GoalContribution contribution) {
-    final name = _nameOf(contribution.userId);
+  Widget _buildContributionTile(GoalContribution c) {
+    final name = _nameOf(c.userId);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           CircleAvatar(
             radius: 14,
-            backgroundColor:
-                colorForUser(contribution.userId).withValues(alpha: 0.25),
+            backgroundColor: _colorForUser(c.userId).withValues(alpha: 0.25),
             child: Text(
-              name.isEmpty
-                  ? '?'
-                  : name.substring(0, min(2, name.length)).toUpperCase(),
-              style:
-                  const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              _initials(name),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(width: 10),
           Expanded(child: Text(name, overflow: TextOverflow.ellipsis)),
-          if (contribution.createdAt != null)
+          if (c.createdAt != null)
             Text(
-              _formatDate(contribution.createdAt!),
+              _formatDate(c.createdAt!),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           const SizedBox(width: 10),
           Text(
-            '+${_formatEuro(contribution.amountCents / 100)}',
+            '+${_euro(c.amountCents)}',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.green,
@@ -649,57 +598,49 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     );
   }
 
-  List<PieChartSectionData> showingSections(
-      List<double> values, List<String> userNames, double remaining) {
-    final totalSaved = values.fold<double>(0, (s, e) => s + e);
-    final total = max(goalAmount, totalSaved);
-    final sections = <PieChartSectionData>[];
+  String _initials(String name) =>
+      name.substring(0, min(2, name.length)).toUpperCase();
 
-    for (int i = 0; i < values.length; i++) {
-      final isTouched = touchedIndex == i;
-      final radius = isTouched ? 85.0 : 75.0;
-      final color = colors[i % colors.length];
-      final percentage = total > 0 ? (values[i] / total) * 100 : 0.0;
-      final widgetSize = isTouched ? 55.0 : 40.0;
+  List<PieChartSectionData> _sections(double remaining) {
+    final users = _pieUsers;
+    final sums = _sumPerUser;
+    final total = max(_goalAmount, _savedCents / 100);
 
-      sections.add(PieChartSectionData(
+    PieChartSectionData section(
+      int i,
+      double value,
+      Color color,
+      String? badge,
+    ) {
+      final touched = _touchedIndex == i;
+      return PieChartSectionData(
         color: color,
-        value: values[i],
-        title: '${percentage.toStringAsFixed(0)}%',
+        value: value,
+        title: '${(total > 0 ? value / total * 100 : 0).toStringAsFixed(0)}%',
         titleStyle: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
-        radius: radius,
-        badgeWidget: _UserBadge(
-          name: userNames[i],
-          size: widgetSize,
-          backgroundColor: color,
-        ),
+        radius: touched ? 85 : 75,
+        badgeWidget: badge == null
+            ? null
+            : _UserBadge(name: badge, size: touched ? 55 : 40, color: color),
         badgePositionPercentageOffset: 1.05,
-      ));
+      );
     }
 
-    if (remaining > 0) {
-      final isTouched = touchedIndex == values.length;
-      final radius = isTouched ? 85.0 : 75.0;
-      final percentage = total > 0 ? (remaining / total) * 100 : 0.0;
-
-      sections.add(PieChartSectionData(
-        color: Colors.grey.shade400,
-        value: remaining,
-        title: '${percentage.toStringAsFixed(0)}%',
-        titleStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+    return [
+      for (var i = 0; i < users.length; i++)
+        section(
+          i,
+          (sums[users[i]] ?? 0) / 100,
+          _colors[i % _colors.length],
+          _nameOf(users[i]),
         ),
-        radius: radius,
-      ));
-    }
-
-    return sections;
+      if (remaining > 0)
+        section(users.length, remaining, Colors.grey.shade400, null),
+    ];
   }
 }
 
@@ -708,42 +649,35 @@ class _UserBadge extends StatelessWidget {
   const _UserBadge({
     required this.name,
     required this.size,
-    required this.backgroundColor,
+    required this.color,
   });
 
   final String name;
   final double size;
-  final Color backgroundColor;
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    final initials = name.length >= 2 ? name.substring(0, 2) : name;
-
-    return AnimatedContainer(
-      duration: PieChart.defaultDuration,
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: backgroundColor.withValues(alpha: 0.8),
-          width: 2.5,
-        ),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, offset: Offset(0, 3), blurRadius: 4),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          initials.toUpperCase(),
-          style: TextStyle(
-            fontSize: size * 0.35,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: PieChart.defaultDuration,
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      border: Border.all(color: color.withValues(alpha: 0.8), width: 2.5),
+      boxShadow: const [
+        BoxShadow(color: Colors.black12, offset: Offset(0, 3), blurRadius: 4),
+      ],
+    ),
+    child: Center(
+      child: Text(
+        name.substring(0, min(2, name.length)).toUpperCase(),
+        style: TextStyle(
+          fontSize: size * 0.35,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
       ),
-    );
-  }
+    ),
+  );
 }
