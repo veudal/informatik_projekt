@@ -17,6 +17,8 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
+  final FocusNode passwordFocusNode = FocusNode();
+  final FocusNode confirmPasswordFocusNode = FocusNode();
   String? _emailError;
   bool _emailTouched = false;
   final ApiService _apiService = ApiService();
@@ -39,7 +41,23 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    passwordFocusNode.dispose();
+    confirmPasswordFocusNode.dispose();
     super.dispose();
+  }
+
+  void focusPasswordField([String? _]) {
+    FocusScope.of(context).requestFocus(passwordFocusNode);
+  }
+
+  void focusConfirmPasswordField([String? _]) {
+    FocusScope.of(context).requestFocus(confirmPasswordFocusNode);
+  }
+
+  void onConfirmPasswordSubmitted([String? _]) {
+    if (isConfirmButtonEnabled() && !_isSubmitting) {
+      onPressConfirm();
+    }
   }
 
   void onInputChange() {
@@ -208,6 +226,8 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                             controller: emailController,
                             autofocus: true,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            onSubmitted: focusPasswordField,
                             enabled: !_isSubmitting,
                             decoration: _decoration(
                               "Gib deine E-Mail ein",
@@ -220,7 +240,10 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: passwordController,
+                          focusNode: passwordFocusNode,
                           obscureText: true,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: focusConfirmPasswordField,
                           enabled: !_isSubmitting,
                           decoration: _decoration("Gib dein Passwort ein"),
                         ),
@@ -229,7 +252,10 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: confirmPasswordController,
+                          focusNode: confirmPasswordFocusNode,
                           obscureText: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: onConfirmPasswordSubmitted,
                           enabled: !_isSubmitting,
                           decoration: _decoration(
                             "Wiederhole dein Passwort",

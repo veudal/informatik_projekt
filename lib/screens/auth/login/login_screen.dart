@@ -15,6 +15,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final FocusNode emailFocusNode = FocusNode();
+  final FocusNode passwordFocusNode = FocusNode();
   bool _isSubmitting = false;
 
   @override
@@ -30,6 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
     passwordController.removeListener(onInputChange);
     emailController.dispose();
     passwordController.dispose();
+    emailFocusNode.dispose();
+    passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -40,6 +44,16 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isConfirmButtonEnabled() {
     return emailController.text.isNotEmpty &&
         passwordController.text.isNotEmpty;
+  }
+
+  void focusPasswordField([String? _]) {
+    FocusScope.of(context).requestFocus(passwordFocusNode);
+  }
+
+  void onPasswordSubmitted([String? _]) {
+    if (isConfirmButtonEnabled() && !_isSubmitting) {
+      onPressConfirm();
+    }
   }
 
   static final BorderRadius _radius = BorderRadius.circular(12);
@@ -118,8 +132,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text('E-Mail'),
                         const SizedBox(height: 8),
                         TextField(
+                          autofocus: true,
                           controller: emailController,
+                          focusNode: emailFocusNode,
                           keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: focusPasswordField,
                           enabled: !_isSubmitting,
                           decoration: _decoration("Gib deine E-Mail ein"),
                         ),
@@ -128,7 +146,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: passwordController,
+                          focusNode: passwordFocusNode,
                           obscureText: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: onPasswordSubmitted,
                           enabled: !_isSubmitting,
                           decoration: _decoration("Gib dein Passwort ein"),
                         ),
@@ -149,7 +170,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 color: Theme.of(context).colorScheme.onPrimary,
-                                
                               ),
                             )
                           : Row(

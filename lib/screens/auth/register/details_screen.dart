@@ -22,6 +22,8 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   final TextEditingController displayNameController = TextEditingController();
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
+  final FocusNode lastNameFocusNode = FocusNode();
+  final FocusNode displayNameFocusNode = FocusNode();
   final String email;
   final String password;
   DateTime? birthDate;
@@ -48,7 +50,24 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
     displayNameController.dispose();
     firstNameController.dispose();
     lastNameController.dispose();
+    lastNameFocusNode.dispose();
+    displayNameFocusNode.dispose();
     super.dispose();
+  }
+
+  void focusLastNameField([String? _]) {
+    FocusScope.of(context).requestFocus(lastNameFocusNode);
+  }
+
+  void focusDisplayNameField([String? _]) {
+    FocusScope.of(context).requestFocus(displayNameFocusNode);
+  }
+
+  void onDisplayNameSubmitted([String? _]) {
+    FocusScope.of(context).unfocus();
+    if (isConfirmButtonEnabled() && !_isSubmitting) {
+      onPressConfirm();
+    }
   }
 
   void onInputChange() {
@@ -226,7 +245,10 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     const Text('Vorname'),
                     const SizedBox(height: 8),
                     TextField(
+                      autofocus: true,
                       controller: firstNameController,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: focusLastNameField,
                       decoration: _decoration("Gib deinen Vornamen ein"),
                     ),
                     const SizedBox(height: 24),
@@ -234,6 +256,9 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: lastNameController,
+                      focusNode: lastNameFocusNode,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: focusDisplayNameField,
                       decoration: _decoration("Gib deinen Nachnamen ein"),
                     ),
                     const SizedBox(height: 24),
@@ -241,6 +266,9 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: displayNameController,
+                      focusNode: displayNameFocusNode,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: onDisplayNameSubmitted,
                       decoration: _decoration("Gib deinen Anzeigenamen ein"),
                     ),
                     const SizedBox(height: 24),
