@@ -22,6 +22,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   final TextEditingController displayNameController = TextEditingController();
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
+  final FocusNode firstNameFocusNode = FocusNode();
   final FocusNode lastNameFocusNode = FocusNode();
   final FocusNode displayNameFocusNode = FocusNode();
   final String email;
@@ -30,7 +31,12 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   bool _isSubmitting = false;
   final ApiService _apiService = ApiService();
 
+  bool _firstNameDone = false;
+  bool _lastNameDone = false;
+  bool _displayNameDone = false;
+
   static final BorderRadius _radius = BorderRadius.circular(12);
+  static final DateTime _minBirthDate = DateTime(1900, 1, 1);
 
   _AddAccountInfoScreenState(this.email, this.password);
 
@@ -40,6 +46,9 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
     displayNameController.addListener(onInputChange);
     firstNameController.addListener(onInputChange);
     lastNameController.addListener(onInputChange);
+    firstNameFocusNode.addListener(_onFocusChange);
+    lastNameFocusNode.addListener(_onFocusChange);
+    displayNameFocusNode.addListener(_onFocusChange);
   }
 
   @override
@@ -47,12 +56,30 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
     displayNameController.removeListener(onInputChange);
     firstNameController.removeListener(onInputChange);
     lastNameController.removeListener(onInputChange);
+    firstNameFocusNode.removeListener(_onFocusChange);
+    lastNameFocusNode.removeListener(_onFocusChange);
+    displayNameFocusNode.removeListener(_onFocusChange);
     displayNameController.dispose();
     firstNameController.dispose();
     lastNameController.dispose();
+    firstNameFocusNode.dispose();
     lastNameFocusNode.dispose();
     displayNameFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() {
+      if (!firstNameFocusNode.hasFocus) {
+        _firstNameDone = firstNameController.text.trim().isNotEmpty;
+      }
+      if (!lastNameFocusNode.hasFocus) {
+        _lastNameDone = lastNameController.text.trim().isNotEmpty;
+      }
+      if (!displayNameFocusNode.hasFocus) {
+        _displayNameDone = displayNameController.text.trim().isNotEmpty;
+      }
+    });
   }
 
   void focusLastNameField([String? _]) {
@@ -71,26 +98,53 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
   }
 
   void onInputChange() {
-    setState(() {});
+    setState(() {
+      // If a field was completed but is now emptied again, undo its progress.
+      if (firstNameController.text.trim().isEmpty) _firstNameDone = false;
+      if (lastNameController.text.trim().isEmpty) _lastNameDone = false;
+      if (displayNameController.text.trim().isEmpty) _displayNameDone = false;
+    });
+  }
+
+  bool get _isBirthDateValid {
+    final date = birthDate;
+    if (date == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return !date.isBefore(_minBirthDate) && !date.isAfter(today);
+  }
+
+  String? get _birthDateError {
+    final date = birthDate;
+    if (date == null) return null; // incomplete, so no error yet
+    
+    // Year not fully typed yet (fewer than 4 digits), so no error.
+    if (date.year < 1000) return null;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (date.isBefore(_minBirthDate)) {
+      return 'Das Geburtsdatum darf nicht vor 1900 liegen.';
+    }
+    if (date.isAfter(today)) {
+      return 'Das Geburtsdatum darf nicht in der Zukunft liegen.';
+    }
+    return null;
   }
 
   bool isConfirmButtonEnabled() {
-    if (displayNameController.text.isNotEmpty &&
-        firstNameController.text.isNotEmpty &&
-        lastNameController.text.isNotEmpty &&
-        birthDate != null) {
-      return true;
-    }
-
-    return false;
+    return displayNameController.text.trim().isNotEmpty &&
+        firstNameController.text.trim().isNotEmpty &&
+        lastNameController.text.trim().isNotEmpty &&
+        _isBirthDateValid;
   }
 
   double get _progress {
     final done = [
-      firstNameController.text.isNotEmpty,
-      lastNameController.text.isNotEmpty,
-      displayNameController.text.isNotEmpty,
-      birthDate != null,
+      _firstNameDone,
+      _lastNameDone,
+      _displayNameDone,
+      _isBirthDateValid,
     ].where((e) => e).length;
     return done / 6 + 1 / 3;
   }
@@ -207,8 +261,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize: MainAxisSize
-                .min, // prevent column from taking up all available space
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Center(
                 child: Text(
@@ -220,8 +273,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
               SizedBox(
                 width: 320,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment
-                      .start, // align widgets to left side of column
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 24),
                     const Text('E-Mail'),
@@ -247,6 +299,7 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     TextField(
                       autofocus: true,
                       controller: firstNameController,
+                      focusNode: firstNameFocusNode,
                       textInputAction: TextInputAction.next,
                       onSubmitted: focusLastNameField,
                       decoration: _decoration("Gib deinen Vornamen ein"),
@@ -273,14 +326,17 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                     ),
                     const SizedBox(height: 24),
                     const Text('Geburtsdatum'),
-                    const SizedBox(height: 8),
                     BirthPicker(
                       locale: 'de_DE',
                       decorationBuilder: (bool isFocused) {
                         return BoxDecoration(
                           border: Border.all(
-                            color: isFocused ? Colors.blue : Colors.grey,
-                            width: isFocused ? 2.0 : 1.0,
+                            color: _birthDateError != null
+                                ? Theme.of(context).colorScheme.error
+                                : (isFocused ? Colors.blue : Colors.grey),
+                            width: (isFocused || _birthDateError != null)
+                                ? 2.0
+                                : 1.0,
                           ),
                           borderRadius: _radius,
                         );
@@ -290,6 +346,17 @@ class _AddAccountInfoScreenState extends State<AddAccountInfoScreen> {
                         onInputChange();
                       },
                     ),
+                    if (_birthDateError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 4),
+                        child: Text(
+                          _birthDateError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

@@ -144,7 +144,7 @@ class _JoinFamilyScreenState extends State<JoinFamilyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Familienmitglied einladen'),
+        title: const Text('Familie beitreten'),
         automaticallyImplyLeading: !_showLoadingButton,
       ),
       body: Center(
