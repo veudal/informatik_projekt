@@ -95,7 +95,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
       ? 0
       : (_savedCents / _goal.targetCents).clamp(0.0, 1.0);
 
-  /// Teilnehmer + alle, die eingezahlt haben, die > 0 beigetragen haben.
+  // Teilnehmer + alle, die eingezahlt haben, die > 0 beigetragen haben.
   List<String> get _pieUsers => {
     ..._goal.participantIds,
     ..._sumPerUser.keys,
@@ -388,49 +388,61 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
             Text('Aufteilung', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             SizedBox(
-              height: 280,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  PieChart(
-                    PieChartData(
-                      startDegreeOffset: -90,
-                      pieTouchData: PieTouchData(
-                        touchCallback: (event, response) {
-                          setState(
-                            () => _touchedIndex =
-                                (!event.isInterestedForInteractions ||
-                                    response?.touchedSection == null)
-                                ? -1
-                                : response!.touchedSection!.touchedSectionIndex,
-                          );
-                        },
-                      ),
-                      borderData: FlBorderData(show: false),
-                      sectionsSpace: 4,
-                      centerSpaceRadius: 60,
-                      sections: _sections(remaining),
-                    ),
-                  ),
-                  IgnorePointer(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${percent.toStringAsFixed(0)} %',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+              height: 400,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  const ringWidth = 50.0;
+                  const badgeRoom = 40.0;
+                  final side = min(constraints.maxWidth, 400.0);
+                  final outerRadius = side / 2 - badgeRoom;
+                  final holeRadius = outerRadius - ringWidth;
+
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      PieChart(
+                        PieChartData(
+                          startDegreeOffset: -90,
+                          pieTouchData: PieTouchData(
+                            touchCallback: (event, response) {
+                              setState(
+                                () => _touchedIndex =
+                                    (!event.isInterestedForInteractions ||
+                                        response?.touchedSection == null)
+                                    ? -1
+                                    : response!
+                                          .touchedSection!
+                                          .touchedSectionIndex,
+                              );
+                            },
                           ),
+                          borderData: FlBorderData(show: false),
+                          sectionsSpace: 4,
+                          centerSpaceRadius: holeRadius,
+                          sections: _sections(remaining, ringWidth),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_euro(_savedCents)} / ${_euro(_goal.targetCents)}',
-                          style: theme.textTheme.bodySmall,
+                      ),
+                      IgnorePointer(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${percent.toStringAsFixed(0)} %',
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${_euro(_savedCents)} / ${_euro(_goal.targetCents)}',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -601,7 +613,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
   String _initials(String name) =>
       name.substring(0, min(2, name.length)).toUpperCase();
 
-  List<PieChartSectionData> _sections(double remaining) {
+  List<PieChartSectionData> _sections(double remaining, double ringWidth) {
     final users = _pieUsers;
     final sums = _sumPerUser;
     final total = max(_goalAmount, _savedCents / 100);
@@ -622,7 +634,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
-        radius: touched ? 85 : 75,
+        radius: touched ? ringWidth + 8 : ringWidth,
         badgeWidget: badge == null
             ? null
             : _UserBadge(name: badge, size: touched ? 55 : 40, color: color),
